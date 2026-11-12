@@ -23,3 +23,5 @@ body{background:var(--bg);color:var(--text)}
 
 /* Required/optional form guidance */
 .optional-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;vertical-align:middle}.required-note{margin:0 0 18px;padding:13px 15px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:13px;line-height:1.5}.validation-box{margin:16px 0;padding:14px 16px;border:1px solid #fda29b;border-radius:10px;background:#fff1f0;color:#912018;font-size:13px;line-height:1.55}.validation-box ul{margin:7px 0 0;padding-left:20px}.field-help{display:block;margin-top:5px;color:#667085;font-size:12px}.required-consent{align-items:flex-start}
+
+.credits-required-note{padding:10px 0 0;border-top:1px solid #e4e7ec}.credits-required-note p{margin:5px 0 0;color:#667085;font-size:13px;line-height:1.5}
