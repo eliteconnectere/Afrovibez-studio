@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0c0b12" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="description" content="AfroVibe Studio — the home for artists, releases and music distribution." />
   <title>AfroVibe Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,18 +21,19 @@
       <div class="workspace-label">WORKSPACE</div>
       <nav class="nav-list" aria-label="Main navigation">
         <button class="nav-item active" data-page="overview"><span class="nav-icon">◫</span>Overview</button>
-        <button class="nav-item" data-page="releases"><span class="nav-icon">♫</span>My releases <span class="nav-count" id="release-count">8</span></button>
+        <button class="nav-item" data-page="releases"><span class="nav-icon">♫</span>My releases </button>
         <button class="nav-item" data-page="upload"><span class="nav-icon">＋</span>Upload music</button>
+        <button class="nav-item" data-page="artist-profile"><span class="nav-icon">♙</span>Artist profile</button>
         <button class="nav-item" data-page="analytics"><span class="nav-icon">▥</span>Analytics</button>
       </nav>
       <div class="workspace-label second-label">MANAGEMENT</div>
       <nav class="nav-list">
         <button class="nav-item" data-page="artists"><span class="nav-icon">♙</span>Artists</button>
-        <button class="nav-item" data-page="review"><span class="nav-icon">◷</span>Review queue <span class="nav-dot"></span></button>
+        <button class="nav-item" data-page="review"><span class="nav-icon">◷</span>Review queue </button>
       </nav>
       <div class="sidebar-bottom">
         <div class="help-card"><div class="help-icon">✦</div><strong>Make your sound travel.</strong><p>Your music deserves to be heard everywhere.</p><button data-page="upload">Start a release <span>↗</span></button></div>
-        <button class="profile-mini" id="profile-menu"><span class="avatar">EC</span><span><b>Studio Admin</b><small>Administrator</small></span><span class="profile-more">•••</span></button>
+        <button class="profile-mini" id="profile-menu"><span class="avatar">AV</span><span><b>Artist account</b><small>Profile setup</small></span><span class="profile-more">•••</span></button>
       </div>
     </aside>
 
@@ -40,11 +41,11 @@
       <header class="topbar">
         <button class="mobile-menu" id="mobile-menu" aria-label="Open menu">☰</button>
         <div class="breadcrumb">Workspace <span>/</span> <b id="crumb-current">Overview</b></div>
-        <div class="top-actions"><span class="environment-pill"><i></i> STUDIO</span><button class="icon-button" id="notifications" aria-label="Notifications">♧<em></em></button><span class="top-avatar">EC</span></div>
+        <div class="top-actions"><span class="environment-pill"><i></i> STUDIO</span><button class="icon-button" id="notifications" aria-label="Notifications">♧<em></em></button><span class="top-avatar">AV</span></div>
       </header>
 
       <section class="page active-page" id="page-overview">
-        <div class="welcome-row"><div><div class="eyebrow">THURSDAY, NOVEMBER 13, 2026</div>
+        <div class="welcome-row"><div><div class="eyebrow">ARTIST WORKSPACE</div><h1>Your studio starts here</h1><p class="subheading">Set up your artist identity and prepare your first release.</p></div></div>
         <section class="panel analytics-empty honest-empty"><div class="empty-graphic">♫</div><h2>Your studio starts here</h2><p>Your releases, review updates and performance figures will appear here when real account and catalogue data are connected.</p><button class="primary-button" data-page="upload">Create a release</button></section>
       </section>
       <section class="page" id="page-releases">
@@ -68,6 +69,38 @@
         </div><aside class="upload-side"><div class="panel checklist"><h3>Before you submit</h3><ul><li><i>✓</i> Use your final mastered audio</li><li><i>✓</i> Make sure artwork is yours</li><li><i>✓</i> Check spelling of artist name</li><li><i>✓</i> Confirm distribution rights</li></ul></div><div class="side-tip"><span>✦</span><b>One home. More listeners.</b><p>Approved releases can be published to AfroVibez after the catalogue connection is configured.</p></div></aside></div>
       </section>
 
+      <section class="page" id="page-artist-profile">
+        <div class="page-heading"><div><div class="eyebrow">ARTIST IDENTITY</div><h1>Build your artist profile</h1><p class="subheading">Tell us who you are. These details help identify and present your music correctly.</p></div></div>
+        <div class="upload-layout"><div class="upload-main">
+          <section class="panel form-panel"><div class="form-section-title"><span>01</span><div><h2>Artist information</h2><p>Use the professional name listeners should see.</p></div></div>
+            <div class="form-grid">
+              <label class="field"><span>Artist / stage name <b>*</b></span><input id="profile-stage-name" placeholder="Your artist or group name" required></label>
+              <label class="field"><span>Legal name</span><input id="profile-legal-name" placeholder="Your legal name (private)"></label>
+              <label class="field"><span>Artist type <b>*</b></span><select id="profile-artist-type"><option value="">Choose one</option><option>Solo artist</option><option>Band</option><option>Music group</option><option>DJ</option><option>Producer</option><option>Composer</option></select></label>
+              <label class="field"><span>Country <b>*</b></span><input id="profile-country" placeholder="Country of residence or origin"></label>
+              <label class="field"><span>City</span><input id="profile-city" placeholder="City"></label>
+              <label class="field"><span>Primary language</span><input id="profile-language" placeholder="Language(s) you perform in"></label>
+              <label class="field full"><span>Artist biography <b>*</b></span><textarea id="profile-bio" rows="5" placeholder="Introduce yourself, your sound, background and musical journey."></textarea></label>
+            </div>
+          </section>
+          <section class="panel form-panel"><div class="form-section-title"><span>02</span><div><h2>Artist image and links</h2><p>Add a real profile photo and official artist pages.</p></div></div>
+            <label class="artwork-drop" id="profile-photo-drop"><input type="file" id="profile-photo" accept="image/jpeg,image/png,image/webp" hidden><span class="art-placeholder">▧</span><span><b id="profile-photo-title">Upload artist profile photo</b><small id="profile-photo-subtitle">JPG, PNG or WEBP · Use an image you have permission to publish</small></span><button type="button" class="browse-button subtle" id="browse-profile-photo">Choose photo</button></label>
+            <div class="form-grid" style="margin-top:18px">
+              <label class="field"><span>Official website</span><input id="profile-website" type="url" placeholder="https://"></label>
+              <label class="field"><span>Instagram</span><input id="profile-instagram" placeholder="@username or profile URL"></label>
+              <label class="field"><span>TikTok</span><input id="profile-tiktok" placeholder="@username or profile URL"></label>
+              <label class="field"><span>YouTube</span><input id="profile-youtube" placeholder="Channel URL"></label>
+              <label class="field"><span>Facebook</span><input id="profile-facebook" placeholder="Page URL"></label>
+              <label class="field"><span>SoundCloud / Audiomack</span><input id="profile-music-link" placeholder="Existing artist profile URL"></label>
+              <label class="field"><span>Management / label</span><input id="profile-management" placeholder="Optional"></label>
+              <label class="field"><span>Contact email</span><input id="profile-contact" type="email" placeholder="Professional contact email"></label>
+            </div>
+            <label class="check-row"><input type="checkbox" id="profile-consent"><span>I confirm that I have permission to use this photo and the links and information I provide are accurate.</span></label>
+            <div class="form-actions"><button class="primary-button" id="save-artist-profile">Save artist profile</button></div>
+            <p class="backend-notice">Artist account registration and profile saving will activate after the dedicated Studio authentication and database project is connected. This form does not currently transmit or store personal information.</p>
+          </section>
+        </div><aside class="upload-side"><div class="panel checklist"><h3>Profile checklist</h3><ul><li><i>✓</i> Professional artist name</li><li><i>✓</i> Clear artist biography</li><li><i>✓</i> Profile photo you own</li><li><i>✓</i> Official artist links</li></ul></div><div class="side-tip"><b>Your identity, your music</b><p>Keep your artist details consistent across your releases and official music profiles.</p></div></aside></div>
+      </section>
       <section class="page" id="page-analytics"><div class="page-heading"><div><div class="eyebrow">PERFORMANCE</div><h1>Analytics</h1><p class="subheading">Verified listening and release performance will appear here when real playback data is connected.</p></div></div><div class="panel analytics-empty"><h2>No analytics available yet</h2><p>There is no connected catalogue or listener activity to report. No invented figures are displayed.</p></div></section>
       <section class="page" id="page-artists"><div class="page-heading"><div><div class="eyebrow">PEOPLE & PROFILES</div><h1>Artists</h1><p class="subheading">Artist profiles associated with this studio.</p></div><button class="outline-button" id="invite-artist">＋ Invite artist</button></div><div class="artist-grid" id="artist-grid"></div></section>
 
