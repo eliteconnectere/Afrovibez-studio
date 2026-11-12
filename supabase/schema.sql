@@ -117,8 +117,10 @@ using (
 with check (
   exists (
     select 1 from public.studio_artists a
-    where a.id = studio_tracks.artist_id and a.owner_user_id = (select auth.uid())
+    where a.id = studio_tracks.artist_id
+      and a.owner_user_id = (select auth.uid())
   )
+  and status in ('draft','pending','rejected')
   or exists (
     select 1 from public.studio_profiles p
     where p.id = (select auth.uid()) and p.role = 'admin'
