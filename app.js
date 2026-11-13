@@ -50,7 +50,29 @@ $("#all-releases-table").addEventListener("click",e=>{
  if(r.review_note)lines.push("Review note: "+r.review_note);openModal(r.title||"Release details",lines.join("\n"));
 });
 async function loadReleases(){if(!currentArtist){releases=[];renderAll();return}const {data,error}=await supabase.from("studio_tracks").select("*,studio_artists(stage_name)").eq("artist_id",currentArtist.id).order("created_at",{ascending:false});if(error){toast(error.message);return}releases=data||[];renderAll()}
-async function renderReview(){if(currentRole!=="admin"){$("#review-list").innerHTML='<div class="panel analytics-empty"><h2>Review access is restricted</h2><p>Only a provisioned studio administrator can review and approve submissions. Artist accounts cannot approve their own music.</p></div>';$("#queue-count").textContent="Admin access required";return}const {data,error}=await supabase.from("studio_tracks").select("id,title,genre,created_at,submitted_at,studio_artists(stage_name)").eq("status","pending").order("submitted_at",{ascending:true});if(error){toast(error.message);return}const list=data||[];$("#queue-count").textContent=list.length+" awaiting review";$("#review-list").innerHTML=list.length?list.map(r=>'<article class="panel review-card" style="padding:20px;margin-bottom:14px"><h3>'+escapeHtml(r.title)+'</h3><p>'+escapeHtml(r.studio_artists?.stage_name||"Artist")+' · '+escapeHtml(r.genre||"Music")+'</p><small>Submitted '+new Date(r.submitted_at||r.created_at).toLocaleString()+'</small><div style="display:flex;gap:10px;margin-top:14px"><button class="primary-button" data-approve="'+r.id+'">Approve & publish</button><button class="outline-button" data-reject="'+r.id+'">Request changes</button></div></article>').join(""):'<div class="panel analytics-empty"><h2>No submissions awaiting review</h2><p>New artist submissions will appear here.</p></div>'}
+async function renderReview(){
+ if(currentRole!=="admin"){
+  $("#review-list").innerHTML='<div class="panel analytics-empty"><h2>Review access is restricted</h2><p>Only a provisioned studio administrator can review and approve submissions. Artist accounts cannot approve their own music.</p></div>';
+  $("#queue-count").textContent="Admin access required";return;
+ }
+ const {data,error}=await supabase.from("studio_tracks").select("*,studio_artists(stage_name)").eq("status","pending").order("submitted_at",{ascending:true});
+ if(error){toast(error.message);return;}
+ const list=data||[];$("#queue-count").textContent=list.length+" awaiting review";
+ const cards=await Promise.all(list.map(async r=>{
+  let audioUrl="",artUrl="";
+  if(r.audio_path){const signed=await supabase.storage.from("studio-audio").createSignedUrl(r.audio_path,3600);if(!signed.error&&signed.data?.signedUrl)audioUrl=new URL(signed.data.signedUrl,SUPABASE_URL).href;}
+  if(r.artwork_path){const signed=await supabase.storage.from("studio-artwork").createSignedUrl(r.artwork_path,3600);if(!signed.error&&signed.data?.signedUrl)artUrl=new URL(signed.data.signedUrl,SUPABASE_URL).href;}
+  const canApprove=!!audioUrl&&!!artUrl;
+  const credits=[r.producers&&("Producer: "+r.producers),r.songwriters&&("Songwriter: "+r.songwriters),r.composers&&("Composer: "+r.composers)].filter(Boolean).join(" · ");
+  return '<article class="panel review-card" style="padding:20px;margin-bottom:14px">'+
+   '<div style="display:flex;gap:16px;align-items:flex-start">'+(artUrl?'<img src="'+escapeHtml(artUrl)+'" alt="Release artwork" style="width:112px;height:112px;object-fit:cover;border-radius:10px">':'<div class="cover">♫</div>')+
+   '<div style="min-width:0;flex:1"><h3>'+escapeHtml(r.title||"Untitled release")+'</h3><p>'+escapeHtml(r.studio_artists?.stage_name||"Artist")+' · '+escapeHtml(r.genre||"Genre missing")+'</p><small>Submitted '+new Date(r.submitted_at||r.created_at).toLocaleString()+'</small></div></div>'+
+   (audioUrl?'<div style="margin-top:14px"><audio controls preload="none" src="'+escapeHtml(audioUrl)+'" style="width:100%">Audio preview unavailable in this browser.</audio></div>':'<p class="validation-box">Audio preview unavailable. Approval is disabled until the file can be accessed.</p>')+
+   '<div class="review-metadata"><p><b>Language:</b> '+escapeHtml(r.language||"Missing")+' · <b>Release date:</b> '+escapeHtml(r.release_date||"Missing")+' · <b>Explicit:</b> '+escapeHtml(r.explicit_content||"Missing")+'</p><p><b>Credits:</b> '+escapeHtml(credits||"Missing")+'</p><p><b>Label:</b> '+escapeHtml(r.label_name||"Independent / not supplied")+' · <b>ISRC:</b> '+escapeHtml(r.isrc||"Not supplied")+' · <b>UPC:</b> '+escapeHtml(r.upc||"Not supplied")+'</p><p><b>Rights confirmed:</b> '+(r.rights_confirmed?"Yes":"No")+' · <b>Metadata confirmed:</b> '+(r.metadata_confirmed?"Yes":"No")+'</p></div>'+
+   '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="primary-button" data-approve="'+r.id+'" '+(canApprove?"":"disabled title=\"Media must be accessible before approval\"")+'>Approve & publish</button><button class="outline-button" data-reject="'+r.id+'">Request changes</button></div></article>';
+ }));
+ $("#review-list").innerHTML=cards.length?cards.join(""):'<div class="panel analytics-empty"><h2>No submissions awaiting review</h2><p>New artist submissions will appear here.</p></div>';
+}
 function renderArtists(){$("#artist-grid").innerHTML=currentArtist?'<div class="panel analytics-empty"><h2>'+escapeHtml(currentArtist.stage_name)+'</h2><p>Your artist profile is connected.</p></div>':'<div class="panel analytics-empty"><h2>No artist profiles yet</h2><p>Artist profiles appear here after registration.</p></div>'}
 function openModal(title,copy){$("#modal-title").textContent=title;$("#modal-copy").textContent=copy;$("#modal-backdrop").classList.add("show")}
 $("#modal-close").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-ok").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-backdrop").addEventListener("click",e=>{if(e.target.id==="modal-backdrop")e.currentTarget.classList.remove("show")});
