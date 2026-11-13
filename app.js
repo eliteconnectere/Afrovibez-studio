@@ -84,6 +84,14 @@ async function renderReview(){
  $("#review-list").innerHTML+='<h2 style="margin-top:28px">Approved releases · administration</h2>'+(approvedHtml||'<p>No approved releases.</p>')+'<h2 style="margin-top:28px">Revoked releases · restoration</h2>'+(revokedHtml||'<p>No revoked releases.</p>');
 
 }
+$("#review-list").addEventListener("click",async e=>{
+ const revoke=e.target.closest("[data-revoke]");
+ if(revoke){const reason=prompt("Why are you revoking this approved release? The artist will receive this reason.");if(reason===null)return;
+  const {data,error}=await supabase.rpc("admin_revoke_approved_track",{p_track_id:revoke.dataset.revoke,p_reason:reason.trim()||null});if(error){toast(error.message);return;}if(!data){toast("The release could not be revoked.");return;}toast("Release revoked and artist notified.");renderReview();return;}
+ const restore=e.target.closest("[data-admin-restore]");
+ if(restore){if(!confirm("Return this release to the pending review queue? It will not be public until approved again."))return;
+  const {data,error}=await supabase.rpc("admin_restore_revoked_track",{p_track_id:restore.dataset.adminRestore});if(error){toast(error.message);return;}if(!data){toast("Could not restore this release.");return;}toast("Release returned to the review queue.");renderReview();}
+});
 function renderArtists(){$("#artist-grid").innerHTML=currentArtist?'<div class="panel analytics-empty"><h2>'+escapeHtml(currentArtist.stage_name)+'</h2><p>Your artist profile is connected.</p></div>':'<div class="panel analytics-empty"><h2>No artist profiles yet</h2><p>Artist profiles appear here after registration.</p></div>'}
 function openModal(title,copy){$("#modal-title").textContent=title;$("#modal-copy").textContent=copy;$("#modal-backdrop").classList.add("show")}
 $("#modal-close").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-ok").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-backdrop").addEventListener("click",e=>{if(e.target.id==="modal-backdrop")e.currentTarget.classList.remove("show")});
