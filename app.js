@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://crjacwqhajlfazcmeitw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyamFjd3FoYWpsZmF6Y21laXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MTY5NjksImV4cCI6MjExMDA5Mjk2OX0.An6dpxYF6PhkQYTdEaHbBbOhEmPQ4BKIdWEbBlhCTao";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let currentUser = null;
 let currentArtist = null;
 let currentRole = "artist";
