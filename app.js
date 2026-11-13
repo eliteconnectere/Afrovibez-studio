@@ -169,32 +169,28 @@ async function submitRelease(asDraft){
  finally{button.disabled=false;button.textContent=originalText;}
 }
 $("#submit-release").addEventListener("click",()=>submitRelease(false));$("#save-draft").addEventListener("click",()=>submitRelease(true));
-function loadSupabaseLibrary(){
- if(window.supabase?.createClient)return Promise.resolve();
+let createSupabaseClient = null;
+async function loadSupabaseLibrary(){
+ if(createSupabaseClient)return;
  const sources=[
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2",
-  "https://unpkg.com/@supabase/supabase-js@2.117.2",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js",
-  "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"
+  "https://esm.sh/@supabase/supabase-js@2.117.2",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm",
+  "https://esm.sh/@supabase/supabase-js@2"
  ];
- return new Promise((resolve,reject)=>{
-  let index=0;
-  const tryNext=()=>{
-   if(window.supabase?.createClient){resolve();return;}
-   if(index>=sources.length){reject(new Error("Could not load the secure Supabase connection library. Please refresh or check your internet connection. Studio navigation is available, but sign-in, profiles, releases and uploads are temporarily unavailable."));return;}
-   const script=document.createElement("script");script.src=sources[index++];script.async=true;
-   let settled=false;
-   const timer=setTimeout(()=>{if(settled)return;settled=true;script.remove();tryNext();},9000);
-   script.onload=()=>{if(settled)return;settled=true;clearTimeout(timer);if(window.supabase?.createClient)resolve();else tryNext();};
-   script.onerror=()=>{if(settled)return;settled=true;clearTimeout(timer);script.remove();tryNext();};
-   document.head.appendChild(script);
-  };
-  tryNext();
- });
+ const failures=[];
+ for(const source of sources){
+  try{
+   const module=await import(source);
+   if(typeof module.createClient!=="function")throw new Error("The downloaded module did not expose createClient.");
+   createSupabaseClient=module.createClient;
+   return;
+  }catch(error){failures.push(source+": "+(error?.message||String(error)));}
+ }
+ throw new Error("AfroVibe Studio could not load the Supabase browser SDK from its module CDNs. This is a library-download failure, not proof that your Supabase project or account is unavailable. Check whether your network, browser content blocker or DNS blocks esm.sh/jsDelivr, then retry. Details: "+failures.join(" | "));
 }
 async function boot(){
  addAuthUi();
- try{await loadSupabaseLibrary();supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}
+ try{await loadSupabaseLibrary();supabase=createSupabaseClient(SUPABASE_URL,SUPABASE_ANON_KEY);}
  catch(e){toast(e.message||"Secure connection unavailable. Navigation is still available.");return;}
  supabase.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;$("#auth-action").textContent=currentUser?"Sign out":"Sign in";if(currentUser)queueMicrotask(()=>loadAccount().catch(e=>toast(e.message)));else{currentArtist=null;currentRole="artist";releases=[];renderAll();renderArtists();renderReview()}});
  try{await loadAccount()}catch(e){toast(e.message||"Could not load your Studio account.")}
