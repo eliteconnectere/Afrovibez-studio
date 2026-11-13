@@ -78,9 +78,30 @@ async function renderReview(){
 function renderArtists(){$("#artist-grid").innerHTML=currentArtist?'<div class="panel analytics-empty"><h2>'+escapeHtml(currentArtist.stage_name)+'</h2><p>Your artist profile is connected.</p></div>':'<div class="panel analytics-empty"><h2>No artist profiles yet</h2><p>Artist profiles appear here after registration.</p></div>'}
 function openModal(title,copy){$("#modal-title").textContent=title;$("#modal-copy").textContent=copy;$("#modal-backdrop").classList.add("show")}
 $("#modal-close").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-ok").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-backdrop").addEventListener("click",e=>{if(e.target.id==="modal-backdrop")e.currentTarget.classList.remove("show")});
-$("#notifications").addEventListener("click",()=>openModal("You're all caught up","New account and release updates will appear here."));
+function openNotifications(){
+ if(!currentUser){openModal("Sign in for notifications","Release updates are linked to your artist account. Sign in to see submission and review activity.");return;}
+ const items=releases.slice().sort((a,b)=>new Date(b.reviewed_at||b.submitted_at||b.created_at)-new Date(a.reviewed_at||a.submitted_at||a.created_at));
+ if(!items.length){openModal("No release updates yet","Your release submission and review updates will appear here after you create a release.");return;}
+ const lines=items.slice(0,12).map(r=>{
+  const when=r.reviewed_at||r.submitted_at||r.created_at;
+  const message=r.status==="approved"?"was approved and published":r.status==="pending"?"was submitted for review":r.status==="rejected"?"needs changes": "is saved as a draft";
+  return (r.title||"Untitled release")+" — "+message+" · "+new Date(when).toLocaleString()+(r.review_note?"\\nReview note: "+r.review_note:"");
+ });
+ openModal("Release notifications",lines.join("\\n\\n"));
+}
+$("#notifications").addEventListener("click",openNotifications);
 $("#profile-menu").addEventListener("click",()=>showPage("artist-profile"));
-$("#invite-artist").addEventListener("click",()=>openModal("Artist invitations","Artist invitations will be enabled in a later Studio release."));
+$("#invite-artist").addEventListener("click",()=>{
+ if(!currentUser){showAuthDialog();toast("Sign in before preparing an artist invitation.");return;}
+ const email=window.prompt("Enter the artist's email address:");
+ if(!email)return;
+ const address=email.trim();
+ if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address)){toast("Enter a valid email address.");return;}
+ const subject=encodeURIComponent("You're invited to AfroVibe Studio");
+ const body=encodeURIComponent("Hello,\\n\\nI'd like to invite you to join AfroVibe Studio to create your artist profile and manage your music releases.\\n\\nOpen AfroVibe Studio: https://afrovibez-studio.vercel.app\\n\\nBest regards");
+ window.location.href="mailto:"+encodeURIComponent(address)+"?subject="+subject+"&body="+body;
+ toast("Invitation email prepared. Send it from your email app to complete the invitation.");
+});
 function setFile(input,title,subtitle){const files=Array.from(input.files||[]);if(!files.length)return;const max=input.id==="audio-file"?500*1024*1024:15*1024*1024;const audio=/\.(mp3|wav|flac|aiff|aif|m4a|aac|ogg)$/i;const image=/\.(jpg|jpeg|png|webp)$/i;const bad=files.find(f=>!(input.id==="audio-file"?audio:image).test(f.name)||f.size>max);if(bad){toast("Unsupported file format or file too large.");input.value="";return}title.textContent=files.length===1?files[0].name:files.length+" files selected";subtitle.textContent=files.map(f=>f.name+" ("+(f.size/1048576).toFixed(1)+" MB)").join(" · ")}
 $("#browse-audio").addEventListener("click",()=>$("#audio-file").click());$("#browse-art").addEventListener("click",()=>$("#art-file").click());$("#browse-profile-photo").addEventListener("click",()=>$("#profile-photo").click());
 $("#profile-photo").addEventListener("change",()=>setFile($("#profile-photo"),$("#profile-photo-title"),$("#profile-photo-subtitle")));
