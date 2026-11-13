@@ -30,12 +30,59 @@ async function renderArtistIdentity(){
  const mini=$("#profile-menu");if(mini){const copy=mini.querySelector("span:nth-child(2)");if(copy){copy.querySelector("b").textContent=name;copy.querySelector("small").textContent=currentArtist?"Artist profile":"Profile setup";}}
 }
 
-function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="review")renderReview()}
+function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="overview")loadOverview();if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="review")renderReview()}
 $$("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
 $("#mobile-menu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
 function localToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function releaseStatusLabel(r){return r.status==="approved"&&r.release_date&&r.release_date>localToday()?"Scheduled":(statusNames[r.status==="approved"?"live":r.status==="pending"?"review":r.status]||r.status)}
 function statusBadge(status,releaseDate){const label=releaseStatusLabel({status,release_date:releaseDate});return '<span class="status '+(status==="approved"?"live":status==="pending"?"review":status==="rejected"?"rejected":"draft")+'">'+label+'</span>'}
+async function loadOverview(){
+ const welcome=$("#dashboard-welcome"),subtitle=$("#dashboard-subtitle");
+ if(!currentUser||!currentArtist){
+  if(welcome)welcome.textContent="Welcome to your studio";
+  if(subtitle)subtitle.textContent="Sign in and complete your artist profile to manage releases and track performance.";
+  ["dashboard-release-count","dashboard-live-count","dashboard-pending-count","dashboard-stream-count"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="—";});
+  $("#dashboard-recent-releases").innerHTML='<tr><td colspan="3" class="dashboard-empty">Sign in to see your releases here.</td></tr>';
+  $("#dashboard-setup-list").innerHTML='<p class="dashboard-empty">Create your artist profile to begin.</p>';
+  return;
+ }
+ if(welcome)welcome.textContent="Welcome back, "+currentArtist.stage_name;
+ if(subtitle)subtitle.textContent="Here is what is happening with your music and artist workspace.";
+ const mine=releases.filter(r=>r.status!=="deleted");
+ const live=mine.filter(r=>r.status==="approved"&&(!r.release_date||r.release_date<=localToday())).length;
+ const pending=mine.filter(r=>r.status==="pending").length;
+ $("#dashboard-release-count").textContent=mine.length.toLocaleString();
+ $("#dashboard-live-count").textContent=live.toLocaleString();
+ $("#dashboard-pending-count").textContent=pending.toLocaleString();
+ $("#dashboard-release-note").textContent=mine.length===1?"1 release in your catalogue":mine.length+" releases in your catalogue";
+ const recent=[...mine].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,5);
+ $("#dashboard-recent-releases").innerHTML=recent.length?recent.map(r=>'<tr><td><div class="track-cell"><span class="cover">♫</span><span>'+escapeHtml(r.title||"Untitled draft")+'<small>'+(r.genre?escapeHtml(r.genre):"Music release")+'</small></span></div></td><td>'+statusBadge(r.status,r.release_date)+'</td><td>'+ (r.created_at?new Date(r.created_at).toLocaleDateString():"—")+'</td></tr>').join(""):'<tr><td colspan="3" class="dashboard-empty">No releases yet. Upload your first song to get started.</td></tr>';
+ const setup=[
+  ["Artist name",!!currentArtist.stage_name],
+  ["Artist type",!!currentArtist.artist_type],
+  ["Location",!!(currentArtist.country&&currentArtist.city)],
+  ["Artist biography",!!currentArtist.bio],
+  ["Profile photo",!!currentArtist.avatar_path],
+  ["Contact email",!!currentArtist.contact_email]
+ ];
+ const completed=setup.filter(x=>x[1]).length;
+ $("#dashboard-setup-list").innerHTML='<div class="setup-progress"><span>'+completed+' of '+setup.length+' complete</span><b>'+Math.round(completed/setup.length*100)+'%</b></div><div class="setup-progress-track"><i style="width:'+(completed/setup.length*100)+'%"></i></div>'+setup.map(([label,done])=>'<div class="setup-item"><span class="'+(done?"is-done":"is-missing")+'">'+(done?"✓":"•")+'</span><span>'+label+'</span><small>'+(done?"Complete":"Add details")+'</small></div>').join("");
+ try{
+  const cutoff=new Date(Date.now()-7*24*60*60*1000).toISOString();
+  const [allStreams,recentStreams]=await Promise.all([
+   supabase.from("studio_track_streams").select("id,studio_tracks!inner(artist_id)",{count:"exact",head:true}).eq("studio_tracks.artist_id",currentArtist.id),
+   supabase.from("studio_track_streams").select("id,studio_tracks!inner(artist_id)",{count:"exact",head:true}).eq("studio_tracks.artist_id",currentArtist.id).gte("streamed_at",cutoff)
+  ]);
+  if(allStreams.error)throw allStreams.error;
+  $("#dashboard-stream-count").textContent=Number(allStreams.count||0).toLocaleString();
+  $("#dashboard-stream-note").textContent=Number(recentStreams.count||0).toLocaleString()+" in the last 7 days";
+  if(recentStreams.error)$("#dashboard-stream-note").textContent="Recent stream count unavailable";
+ }catch(error){
+  $("#dashboard-stream-count").textContent="—";
+  $("#dashboard-stream-note").textContent="Playback analytics unavailable";
+  console.warn("Overview stream totals unavailable",error);
+ }
+}
 function renderAll(){
  const query=$("#release-search").value.toLowerCase(),filter=$("#status-filter").value;
  const list=releases.filter(r=>{
@@ -202,7 +249,7 @@ function addAuthUi(){const top=$(".top-actions");const button=document.createEle
 function showAuthDialog(){if(!currentUser){$("#auth-panel").style.display="flex";$("#auth-submit").dataset.mode="signin";$("#auth-submit").textContent="Sign in"}}
 async function handleAuth(){if(!supabase){toast("Secure connection is unavailable. Please try again shortly.");return;}const email=$("#auth-email").value.trim();const password=$("#auth-password").value;if(!email||password.length<8){toast("Enter a valid email and a password of at least 8 characters.");return}const signup=$("#auth-submit").dataset.mode==="signup";$("#auth-submit").disabled=true;try{const result=signup?await supabase.auth.signUp({email,password,options:{data:{display_name:email.split("@")[0]},emailRedirectTo:"https://afrovibez-studio.vercel.app/"}}):await supabase.auth.signInWithPassword({email,password});if(result.error)throw result.error;if(signup&&!result.data.session){toast("Account created. Check your email to confirm it, then sign in.");$("#auth-panel").style.display="none"}else{$("#auth-panel").style.display="none";await loadAccount();toast(signup?"Artist account created.":"Welcome back.")}}catch(e){toast(e.message||"Authentication failed.")}finally{$("#auth-submit").disabled=false}}
 async function signOut(){if(!supabase){toast("Secure connection is unavailable.");return;}await supabase.auth.signOut();currentUser=null;currentArtist=null;currentRole="artist";releases=[];$("#auth-action").textContent="Sign in";renderAll();renderArtists();toast("Signed out.")}
-async function loadAccount(){const {data:{user}}=await supabase.auth.getUser();currentUser=user;if(!user){currentRole="artist";$("#auth-action").textContent="Sign in";return}$("#auth-action").textContent="Sign out";const {data:profile,error:profileError}=await supabase.from("studio_profiles").select("role").eq("id",user.id).maybeSingle();if(profileError)throw profileError;currentRole=profile?.role||"artist";const {data,error}=await supabase.from("studio_artists").select("*").eq("owner_user_id",user.id).maybeSingle();if(error)throw error;currentArtist=data;await renderArtistIdentity();renderArtists();await renderReview();if(data){await loadReleases();if(!releases.length)showPage("upload");$("#artist-name").value=data.stage_name||"";$("#profile-stage-name").value=data.stage_name||"";$("#profile-bio").value=data.bio||"";$("#profile-country").value=data.country||"";void loadCities(data.country||"",data.city||"");$("#profile-language").value=data.primary_language||"";$("#profile-artist-type").value=data.artist_type||"";$("#profile-city").value=data.city||"";$("#profile-contact").value=data.contact_email||"";$("#profile-legal-name").value=data.legal_name||"";$("#profile-website").value=data.website||"";$("#profile-instagram").value=data.instagram||"";$("#profile-tiktok").value=data.tiktok||"";$("#profile-youtube").value=data.youtube||"";$("#profile-facebook").value=data.facebook||"";$("#profile-music-link").value=data.music_link||"";$("#profile-management").value=data.management||"";$("#artist-name").value=data.stage_name||""}else{releases=[];renderAll();showPage("artist-profile");toast("Welcome to AfroVibe Studio. Complete your artist profile before uploading music.");}}
+async function loadAccount(){const {data:{user}}=await supabase.auth.getUser();currentUser=user;if(!user){currentRole="artist";$("#auth-action").textContent="Sign in";return}$("#auth-action").textContent="Sign out";const {data:profile,error:profileError}=await supabase.from("studio_profiles").select("role").eq("id",user.id).maybeSingle();if(profileError)throw profileError;currentRole=profile?.role||"artist";const {data,error}=await supabase.from("studio_artists").select("*").eq("owner_user_id",user.id).maybeSingle();if(error)throw error;currentArtist=data;await renderArtistIdentity();renderArtists();await renderReview();if(data){await loadReleases();if(!releases.length)showPage("upload");$("#artist-name").value=data.stage_name||"";$("#profile-stage-name").value=data.stage_name||"";$("#profile-bio").value=data.bio||"";$("#profile-country").value=data.country||"";void loadCities(data.country||"",data.city||"");$("#profile-language").value=data.primary_language||"";$("#profile-artist-type").value=data.artist_type||"";$("#profile-city").value=data.city||"";$("#profile-contact").value=data.contact_email||"";$("#profile-legal-name").value=data.legal_name||"";$("#profile-website").value=data.website||"";$("#profile-instagram").value=data.instagram||"";$("#profile-tiktok").value=data.tiktok||"";$("#profile-youtube").value=data.youtube||"";$("#profile-facebook").value=data.facebook||"";$("#profile-music-link").value=data.music_link||"";$("#profile-management").value=data.management||"";$("#artist-name").value=data.stage_name||"";await loadOverview()}else{releases=[];renderAll();await loadOverview();showPage("artist-profile");toast("Welcome to AfroVibe Studio. Complete your artist profile before uploading music.");}}
 function showValidation(id,items){const box=$("#"+id);if(!box)return;if(!items.length){box.hidden=true;box.innerHTML="";return;}box.hidden=false;box.innerHTML='<strong>Please complete these required items:</strong><ul>'+items.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ul>';}
 async function saveArtistProfile(){
  if(!currentUser){showAuthDialog();toast("Sign in or create an artist account first.");return;}
