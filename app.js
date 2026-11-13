@@ -177,7 +177,28 @@ $("#review-list").addEventListener("click",async e=>{
  if(restore){if(!confirm("Return this release to the pending review queue? It will not be public until approved again."))return;
   const {data,error}=await supabase.rpc("admin_restore_revoked_track",{p_track_id:restore.dataset.adminRestore});if(error){toast(error.message);return;}if(!data){toast("Could not restore this release.");return;}toast("Release returned to the review queue.");renderReview();}
 });
-function renderArtists(){$("#artist-grid").innerHTML=currentArtist?'<div class="panel analytics-empty"><h2>'+escapeHtml(currentArtist.stage_name)+'</h2><p>Your artist profile is connected.</p></div>':'<div class="panel analytics-empty"><h2>No artist profiles yet</h2><p>Artist profiles appear here after registration.</p></div>'}
+async function renderArtists(){
+ const host=$("#artist-grid"),invite=$("#invite-artist");
+ if(invite)invite.hidden=currentRole!=="admin";
+ if(!currentUser){host.innerHTML='<div class="panel analytics-empty"><h2>Sign in to view artists</h2><p>Artist profiles are available to authorised Studio accounts.</p></div>';return;}
+ let artists=[];
+ if(currentRole==="admin"){
+  const {data,error}=await supabase.from("studio_artists").select("id,stage_name,artist_type,country,city,bio,avatar_path,created_at").order("created_at",{ascending:false});
+  if(error){host.innerHTML='<div class="panel analytics-empty"><h2>Artist directory could not load</h2><p>'+escapeHtml(error.message)+'</p></div>';return;}
+  artists=data||[];
+ }else if(currentArtist){artists=[currentArtist];}
+ if(!artists.length){host.innerHTML='<div class="panel analytics-empty"><h2>No artist profiles yet</h2><p>Artist profiles will appear here after an artist completes setup.</p><button class="primary-button" data-page="artist-profile">Create artist profile</button></div>';return;}
+ const cards=await Promise.all(artists.map(async artist=>{
+  let avatar="";
+  if(artist.avatar_path){const signed=await supabase.storage.from("studio-artwork").createSignedUrl(artist.avatar_path,3600);if(!signed.error)avatar=signed.data?.signedUrl||"";}
+  const initials=(artist.stage_name||"Artist").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase();
+  const location=[artist.city,artist.country].filter(Boolean).join(", ");
+  const image=avatar?'<img class="artist-directory-avatar" src="'+escapeHtml(avatar)+'" alt="Artist profile photo">':'<div class="artist-directory-avatar artist-directory-initials">'+escapeHtml(initials)+'</div>';
+  const adminMeta=currentRole==="admin"?'<div class="artist-directory-id">Artist ID · '+escapeHtml(String(artist.id).slice(0,8))+'</div>':'<button class="outline-button" data-page="artist-profile">Edit my profile</button>';
+  return '<article class="panel artist-directory-card"><div class="artist-directory-head">'+image+'<div class="artist-directory-info"><h2>'+escapeHtml(artist.stage_name||"Unnamed artist")+'</h2><p>'+escapeHtml(artist.artist_type||"Artist")+'</p></div></div><div class="artist-directory-meta"><span>⌖ '+escapeHtml(location||"Location not added")+'</span><span>Joined '+(artist.created_at?new Date(artist.created_at).toLocaleDateString():"—")+'</span></div><p class="artist-directory-bio">'+escapeHtml((artist.bio||"No artist biography added yet.").slice(0,170))+'</p>'+adminMeta+'</article>';
+ }));
+ host.innerHTML=cards.join("");
+}
 function openModal(title,copy){$("#modal-title").textContent=title;$("#modal-copy").textContent=copy;$("#modal-backdrop").classList.add("show")}
 $("#modal-close").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-ok").addEventListener("click",()=>$("#modal-backdrop").classList.remove("show"));$("#modal-backdrop").addEventListener("click",e=>{if(e.target.id==="modal-backdrop")e.currentTarget.classList.remove("show")});
 async function openNotifications(){
