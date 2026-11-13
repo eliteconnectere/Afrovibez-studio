@@ -151,9 +151,10 @@ $("#submit-release").addEventListener("click",()=>submitRelease(false));$("#save
 function loadSupabaseLibrary(){
  if(window.supabase?.createClient)return Promise.resolve();
  const sources=[
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2",
+  "https://unpkg.com/@supabase/supabase-js@2.117.2",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js",
-  "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"
+  "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"
  ];
  return new Promise((resolve,reject)=>{
   let index=0;
@@ -162,7 +163,7 @@ function loadSupabaseLibrary(){
    if(index>=sources.length){reject(new Error("Could not load the secure Supabase connection library. Please refresh or check your internet connection. Studio navigation is available, but sign-in, profiles, releases and uploads are temporarily unavailable."));return;}
    const script=document.createElement("script");script.src=sources[index++];script.async=true;
    let settled=false;
-   const timer=setTimeout(()=>{if(settled)return;settled=true;script.remove();tryNext();},12000);
+   const timer=setTimeout(()=>{if(settled)return;settled=true;script.remove();tryNext();},9000);
    script.onload=()=>{if(settled)return;settled=true;clearTimeout(timer);if(window.supabase?.createClient)resolve();else tryNext();};
    script.onerror=()=>{if(settled)return;settled=true;clearTimeout(timer);script.remove();tryNext();};
    document.head.appendChild(script);
