@@ -4,9 +4,14 @@
 alter table public.studio_tracks
   alter column title drop not null,
   alter column genre drop not null;
+alter table public.studio_artists
+  add column if not exists profile_consent boolean not null default false,
+  add column if not exists profile_consent_at timestamptz;
 alter table public.studio_tracks
   add column if not exists rights_confirmed boolean not null default false,
-  add column if not exists metadata_confirmed boolean not null default false;
+  add column if not exists metadata_confirmed boolean not null default false,
+  add column if not exists rights_confirmed_at timestamptz,
+  add column if not exists metadata_confirmed_at timestamptz;
 
 create or replace function public.enforce_studio_release_requirements()
 returns trigger
@@ -19,7 +24,7 @@ declare
 begin
   if new.status not in ('pending','approved') then return new; end if;
 
-  select stage_name, artist_type, country, city, bio, avatar_path, contact_email
+  select stage_name, artist_type, country, city, bio, avatar_path, contact_email, profile_consent, profile_consent_at
     into artist_row
   from public.studio_artists where id = new.artist_id;
 
@@ -32,6 +37,7 @@ begin
   if nullif(btrim(artist_row.bio),'') is null then missing_fields := array_append(missing_fields,'artist biography'); end if;
   if nullif(btrim(artist_row.avatar_path),'') is null then missing_fields := array_append(missing_fields,'artist profile photo'); end if;
   if nullif(btrim(artist_row.contact_email),'') is null then missing_fields := array_append(missing_fields,'professional contact email'); end if;
+  if artist_row.profile_consent is not true or artist_row.profile_consent_at is null then missing_fields := array_append(missing_fields,'artist profile publication permission confirmation'); end if;
 
   if nullif(btrim(new.title),'') is null then missing_fields := array_append(missing_fields,'release title'); end if;
   if nullif(btrim(new.genre),'') is null then missing_fields := array_append(missing_fields,'genre'); end if;
@@ -44,8 +50,8 @@ begin
   if nullif(btrim(new.producers),'') is null and nullif(btrim(new.songwriters),'') is null and nullif(btrim(new.composers),'') is null then
     missing_fields := array_append(missing_fields,'at least one producer, songwriter or composer credit');
   end if;
-  if new.rights_confirmed is not true then missing_fields := array_append(missing_fields,'distribution-rights confirmation'); end if;
-  if new.metadata_confirmed is not true then missing_fields := array_append(missing_fields,'metadata-accuracy confirmation'); end if;
+  if new.rights_confirmed is not true or new.rights_confirmed_at is null then missing_fields := array_append(missing_fields,'distribution-rights confirmation'); end if;
+  if new.metadata_confirmed is not true or new.metadata_confirmed_at is null then missing_fields := array_append(missing_fields,'metadata-accuracy confirmation'); end if;
 
   if coalesce(array_length(missing_fields,1),0) > 0 then
     raise exception 'Cannot submit or publish this release. Complete required items: %', array_to_string(missing_fields, ', ');
