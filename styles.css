@@ -27,3 +27,6 @@ body{background:var(--bg);color:var(--text)}
 .credits-required-note{padding:10px 0 0;border-top:1px solid #e4e7ec}.credits-required-note p{margin:5px 0 0;color:#667085;font-size:13px;line-height:1.5}
 
 .review-metadata{margin-top:12px;padding:12px;border-radius:10px;background:#f8fafc;color:#344054;font-size:12px;line-height:1.55}.review-metadata p{margin:4px 0}.review-card audio{display:block;max-width:100%}.review-card button:disabled{opacity:.45;cursor:not-allowed}
+
+/* iPhone search: prevent Safari's automatic page zoom and horizontal layout expansion. */
+@media(max-width:760px){html,body{max-width:100%;overflow-x:hidden}.main-area,.page,.toolbar,.search-box{min-width:0;max-width:100%}.search-box{width:100%;flex:1 1 100%}.search-box input{min-width:0;font-size:16px!important;line-height:1.35;touch-action:manipulation}.toolbar select{width:100%;max-width:100%}}
