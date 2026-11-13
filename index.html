@@ -45,8 +45,18 @@
       </header>
 
       <section class="page active-page" id="page-overview">
-        <div class="welcome-row"><div><div class="eyebrow">ARTIST WORKSPACE</div><h1>Your studio starts here</h1><p class="subheading">Set up your artist identity and prepare your first release.</p></div></div>
-        <section class="panel analytics-empty honest-empty"><div class="empty-graphic">♫</div><h2>Your studio starts here</h2><p>Your releases, review updates and performance figures will appear here when real account and catalogue data are connected.</p><button class="primary-button" data-page="upload">Create a release</button></section>
+        <div class="welcome-row"><div><div class="eyebrow">ARTIST WORKSPACE</div><h1 id="dashboard-welcome">Welcome to your studio</h1><p class="subheading" id="dashboard-subtitle">Your releases, audience activity and artist workspace in one place.</p></div><button class="primary-button" data-page="upload">＋ Create a release</button></div>
+        <div class="dashboard-stat-grid">
+          <article class="dashboard-stat"><span class="dashboard-stat-icon">♫</span><div><small>My releases</small><strong id="dashboard-release-count">—</strong><span id="dashboard-release-note">Your submitted catalogue</span></div></article>
+          <article class="dashboard-stat"><span class="dashboard-stat-icon red">◉</span><div><small>Live releases</small><strong id="dashboard-live-count">—</strong><span>Approved and published</span></div></article>
+          <article class="dashboard-stat"><span class="dashboard-stat-icon">◷</span><div><small>In review</small><strong id="dashboard-pending-count">—</strong><span>Waiting for studio review</span></div></article>
+          <article class="dashboard-stat"><span class="dashboard-stat-icon red">↗</span><div><small>Qualifying streams</small><strong id="dashboard-stream-count">—</strong><span id="dashboard-stream-note">30-second playback events</span></div></article>
+        </div>
+        <div class="dashboard-columns">
+          <section class="panel dashboard-panel"><div class="dashboard-panel-heading"><div><div class="eyebrow">CATALOGUE</div><h2>Recent releases</h2><p>Your latest uploads and their current status.</p></div><button class="text-action" data-page="releases">View all →</button></div><div class="table-wrap"><table><thead><tr><th>RELEASE</th><th>STATUS</th><th>DATE ADDED</th></tr></thead><tbody id="dashboard-recent-releases"><tr><td colspan="3" class="dashboard-empty">Sign in to load your releases.</td></tr></tbody></table></div></section>
+          <section class="panel dashboard-panel"><div class="dashboard-panel-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Artist setup</h2><p>Keep your artist identity ready for release day.</p></div></div><div id="dashboard-setup-list" class="dashboard-setup-list"><p class="dashboard-empty">Sign in to check your profile setup.</p></div><button class="outline-button dashboard-profile-button" data-page="artist-profile">Manage artist profile →</button></section>
+        </div>
+        <section class="dashboard-bottom-row"><div class="dashboard-tip"><span>✦</span><div><b>Make every release count.</b><p>Keep your artwork, credits and release details accurate before submitting music for review.</p></div></div><div class="dashboard-quick-actions"><button class="outline-button" data-page="analytics">View analytics</button><button class="outline-button" data-page="upload">Upload music</button></div></section>
       </section>
       <section class="page" id="page-releases">
         <div class="page-heading"><div><div class="eyebrow">YOUR CATALOGUE</div><h1>My releases</h1><p class="subheading">Manage every track you've submitted to the studio.</p></div><button class="primary-button" data-page="upload">＋ Upload music</button></div>
