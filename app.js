@@ -8,7 +8,7 @@ let currentArtist = null;
 let currentRole = "artist";
 let releases = [];
 let editingReleaseId = null;
-const statusNames={live:"Live",review:"Under review",draft:"Draft",rejected:"Needs changes"};
+const statusNames={live:"Live",review:"Under review",draft:"Draft",rejected:"Needs changes",deleted:"Deleted by me",revoked:"Revoked by admin"};
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove("show"),3500)}
@@ -25,7 +25,7 @@ function renderAll(){
   const matches=filter==="all"||(filter==="live"&&r.status==="approved"&&!scheduled)||(filter==="scheduled"&&scheduled)||(filter==="review"&&r.status==="pending")||r.status===filter;
   return matches&&((r.title||"")+" "+(r.studio_artists?.stage_name||r.artist||"")).toLowerCase().includes(query);
  });
- $("#all-releases-table").innerHTML=list.length?list.map(r=>'<tr><td><div class="track-cell"><span class="cover">♫</span><span>'+escapeHtml(r.title||"Untitled draft")+'<small>'+r.id.slice(0,8)+'</small></span></div></td><td>'+escapeHtml(r.studio_artists?.stage_name||r.artist||"")+'</td><td>'+statusBadge(r.status,r.release_date)+'</td><td>'+new Date(r.created_at).toLocaleDateString()+'</td><td>—</td><td><button class="mini-button" data-detail="'+r.id+'">Details</button><button class="mini-button" data-download-toggle="'+r.id+'">'+(r.allow_downloads===false?"🔒 Downloads locked":"Downloads allowed")+"</button>"+(["draft","rejected"].includes(r.status)?'<button class="mini-button" data-edit="'+r.id+'">Edit</button>':"")+'</td></tr>').join(""):'<tr><td colspan="6" style="text-align:center;padding:30px">No releases yet. Upload your first track to get started.</td></tr>';
+ $("#all-releases-table").innerHTML=list.length?list.map(r=>'<tr><td><div class="track-cell"><span class="cover">♫</span><span>'+escapeHtml(r.title||"Untitled draft")+'<small>'+r.id.slice(0,8)+'</small></span></div></td><td>'+escapeHtml(r.studio_artists?.stage_name||r.artist||"")+'</td><td>'+statusBadge(r.status,r.release_date)+'</td><td>'+new Date(r.created_at).toLocaleDateString()+'</td><td>—</td><td><button class="mini-button" data-detail="'+r.id+'">Details</button><button class="mini-button" data-download-toggle="'+r.id+'">'+(r.allow_downloads===false?"🔒 Downloads locked":"Downloads allowed")+"</button>"+(["draft","rejected"].includes(r.status)?'<button class="mini-button" data-edit="'+r.id+'">Edit</button>':"")+(r.status==="deleted"||r.status==="revoked"?'<button class="mini-button" data-restore="'+r.id+'">Restore</button>':'<button class="mini-button" data-delete="'+r.id+'">Delete song</button>')+'</td></tr>').join(""):'<tr><td colspan="6" style="text-align:center;padding:30px">No releases yet. Upload your first track to get started.</td></tr>';
 }
 function escapeHtml(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 $("#release-search").addEventListener("input",renderAll);$("#status-filter").addEventListener("change",renderAll);
@@ -110,7 +110,38 @@ $("#invite-artist").addEventListener("click",()=>{
 function setFile(input,title,subtitle){const files=Array.from(input.files||[]);if(!files.length)return;const max=input.id==="audio-file"?500*1024*1024:15*1024*1024;const audio=/\.(mp3|wav|flac|aiff|aif|m4a|aac|ogg)$/i;const image=/\.(jpg|jpeg|png|webp)$/i;const bad=files.find(f=>!(input.id==="audio-file"?audio:image).test(f.name)||f.size>max);if(bad){toast("Unsupported file format or file too large.");input.value="";return}title.textContent=files.length===1?files[0].name:files.length+" files selected";subtitle.textContent=files.map(f=>f.name+" ("+(f.size/1048576).toFixed(1)+" MB)").join(" · ")}
 $("#browse-audio").addEventListener("click",()=>$("#audio-file").click());$("#browse-art").addEventListener("click",()=>$("#art-file").click());$("#browse-profile-photo").addEventListener("click",()=>$("#profile-photo").click());
 $("#profile-photo").addEventListener("change",()=>setFile($("#profile-photo"),$("#profile-photo-title"),$("#profile-photo-subtitle")));
+
 $("#audio-file").addEventListener("change",()=>setFile($("#audio-file"),$("#audio-title"),$("#audio-subtitle")));
+$("#import-audio-link").addEventListener("click",async()=>{
+ const url=$("#audio-source-url").value.trim(),button=$("#import-audio-link");
+ if(!url){toast("Paste a direct audio-file download URL first.");return;}
+ let parsed;try{parsed=new URL(url);if(!["https:","http:"].includes(parsed.protocol))throw new Error();}catch{toast("Enter a valid HTTP or HTTPS audio URL.");return;}
+ const original=button.textContent;button.disabled=true;button.textContent="Importing original audio…";
+ try{
+  const response=await fetch(parsed.href,{method:"GET",mode:"cors",credentials:"omit"});
+  if(!response.ok)throw new Error("The source returned HTTP "+response.status+".");
+  const blob=await response.blob();
+  if(!blob.size||blob.size>500*1024*1024)throw new Error("Audio must be non-empty and no larger than 500 MB.");
+  const allowed=["mp3","wav","flac","aiff","aif","m4a","aac","ogg"];
+  const disposition=response.headers.get("content-disposition")||"";
+  const match=disposition.match(/filename\*?=(?:UTF-8''|["']?)([^;"']+)/i);
+  let filename=match?decodeURIComponent(match[1].replace(/^["']|["']$/g,"")):decodeURIComponent(parsed.pathname.split("/").pop()||"imported-audio");
+  if(!/\.(mp3|wav|flac|aiff|aif|m4a|aac|ogg)$/i.test(filename)){
+   const mime=(blob.type||"").split(";")[0].toLowerCase();
+   const ext={"audio/mpeg":"mp3","audio/wav":"wav","audio/x-wav":"wav","audio/flac":"flac","audio/aiff":"aiff","audio/mp4":"m4a","audio/aac":"aac","audio/ogg":"ogg"}[mime];
+   if(!ext)throw new Error("The link did not return a recognized audio file. Use a direct downloadable audio-file URL.");
+   filename+="."+ext;
+  }
+  if(!allowed.includes(filename.split(".").pop().toLowerCase()))throw new Error("Unsupported audio format.");
+  const file=new File([blob],filename,{type:blob.type||"application/octet-stream",lastModified:Date.now()});
+  const transfer=new DataTransfer();transfer.items.add(file);$("#audio-file").files=transfer.files;
+  $("#audio-file").dispatchEvent(new Event("change",{bubbles:true}));$("#audio-source-url").value="";
+  toast("Original audio imported without re-encoding. Check the file name before submitting.");
+ }catch(error){
+  const msg=error?.message||"Could not import that link.";
+  toast(msg.includes("Failed to fetch")||msg.includes("CORS")?"This source blocks direct browser import (CORS or sign-in protection). Export/download the original audio from the source and upload that file instead; AfroVibe does not compress or re-encode it.":msg);
+ }finally{button.disabled=false;button.textContent=original;}
+});
 $("#art-file").addEventListener("change",()=>setFile($("#art-file"),$("#art-title"),$("#art-subtitle")));
 ["audio-drop","art-drop","profile-photo-drop"].forEach(id=>{const box=$("#"+id);if(!box)return;box.addEventListener("dragover",e=>{e.preventDefault();box.style.borderColor="#2563eb"});box.addEventListener("dragleave",()=>box.style.borderColor="");box.addEventListener("drop",e=>{e.preventDefault();box.style.borderColor="";const file=e.dataTransfer.files[0];if(!file)return;const input=$(id==="audio-drop"?"#audio-file":id==="art-drop"?"#art-file":"#profile-photo");const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event("change"))})});
 function addAuthUi(){const top=$(".top-actions");const button=document.createElement("button");button.className="outline-button";button.id="auth-action";button.textContent="Sign in";top.prepend(button);const style=document.createElement("style");style.textContent="#auth-panel{position:fixed;inset:0;background:#10182899;z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}#auth-panel .auth-card{background:white;color:#172033;border-radius:18px;padding:28px;width:min(440px,100%);box-shadow:0 20px 70px #0003}#auth-panel input{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:9px;margin:7px 0 14px}#auth-panel button{margin:5px 8px 0 0}#auth-panel .auth-row{display:flex;gap:8px;flex-wrap:wrap}";document.head.append(style);const panel=document.createElement("div");panel.id="auth-panel";panel.innerHTML='<div class="auth-card"><h2 id="auth-heading">Artist sign in</h2><p id="auth-copy">Create an account to manage your music releases.</p><label>Email<input id="auth-email" type="email" autocomplete="email" required></label><label>Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required></label><div class="auth-row"><button class="primary-button" id="auth-submit">Sign in</button><button class="outline-button" id="auth-toggle">Create account</button><button class="outline-button" id="auth-cancel">Cancel</button></div></div>';document.body.append(panel);$("#auth-action").addEventListener("click",()=>currentUser?signOut():showAuthDialog());$("#auth-cancel").addEventListener("click",()=>panel.style.display="none");$("#auth-toggle").addEventListener("click",()=>{const signup=$("#auth-submit").dataset.mode!=="signup";$("#auth-submit").dataset.mode=signup?"signup":"signin";$("#auth-submit").textContent=signup?"Create account":"Sign in";$("#auth-heading").textContent=signup?"Create your artist account":"Artist sign in";$("#auth-copy").textContent=signup?"Use your email and a password of at least 8 characters.":"Sign in to your AfroVibe Studio account."});$("#auth-submit").addEventListener("click",handleAuth)}
