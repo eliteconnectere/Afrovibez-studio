@@ -30,3 +30,8 @@ body{background:var(--bg);color:var(--text)}
 
 /* iPhone search: prevent Safari's automatic page zoom and horizontal layout expansion. */
 @media(max-width:760px){html,body{max-width:100%;overflow-x:hidden}.main-area,.page,.toolbar,.search-box{min-width:0;max-width:100%}.search-box{width:100%;flex:1 1 100%}.search-box input{min-width:0;font-size:16px!important;line-height:1.35;touch-action:manipulation}.toolbar select{width:100%;max-width:100%}}
+
+/* AfroVibe Studio identity: carry the saved artist photo across the workspace. */
+.avatar,.top-avatar{overflow:hidden;display:grid;place-items:center}
+.studio-avatar-photo{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
+.profile-mini .avatar{flex:0 0 39px}
