@@ -126,3 +126,83 @@ with check (
 );
 
 create index if not exists studio_tracks_reviewed_by_idx on public.studio_tracks(reviewed_by);
+
+-- Public listener access is restricted to approved rows and a safe column allow-list.
+drop policy if exists "listeners artists and admins read permitted tracks" on public.studio_tracks;
+drop policy if exists "public can read approved tracks" on public.studio_tracks;
+create policy "public can read approved tracks" on public.studio_tracks
+for select to anon using (status = 'approved');
+drop policy if exists "artists and admins read permitted tracks" on public.studio_tracks;
+create policy "artists and admins read permitted tracks" on public.studio_tracks
+for select to authenticated
+using (
+  status = 'approved'
+  or exists (select 1 from public.studio_artists a where a.id = studio_tracks.artist_id and a.owner_user_id = (select auth.uid()))
+  or exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+);
+revoke all on public.studio_tracks from anon;
+grant select (id, artist_id, title, genre, language, release_type, explicit_content, audio_path, artwork_path, release_date, approved_at, status) on public.studio_tracks to anon;
+revoke all on public.studio_artists from anon;
+revoke all on public.studio_profiles from anon;
+revoke all on public.studio_artist_public from anon;
+grant select on public.studio_artist_public to anon;
+
+drop policy if exists "artists read own media" on storage.objects;
+create policy "artists and admins read studio media" on storage.objects
+for select to authenticated
+using (
+  bucket_id in ('studio-audio','studio-artwork')
+  and (
+    (storage.foldername(name))[1] = (select auth.uid())::text
+    or (storage.foldername(name))[1] in (select a.id::text from public.studio_artists a where a.owner_user_id = (select auth.uid()))
+    or exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+  )
+);
+drop policy if exists "artists delete own media" on storage.objects;
+drop policy if exists "artists delete unreferenced own media" on storage.objects;
+create policy "artists delete unreferenced own media" on storage.objects
+for delete to authenticated
+using (
+  bucket_id in ('studio-audio','studio-artwork')
+  and (
+    (storage.foldername(name))[1] = (select auth.uid())::text
+    or (storage.foldername(name))[1] in (select a.id::text from public.studio_artists a where a.owner_user_id = (select auth.uid()))
+  )
+  and not exists (select 1 from public.studio_tracks t where t.status in ('pending','approved') and (t.audio_path = objects.name or t.artwork_path = objects.name))
+  and not exists (select 1 from public.studio_artists a where a.avatar_path = objects.name)
+);
+
+create or replace function public.enforce_studio_release_requirements()
+returns trigger language plpgsql set search_path = public, pg_temp as $$
+declare artist_row record; missing_fields text[] := array[]::text[];
+begin
+  if new.status not in ('pending','approved') then return new; end if;
+  select stage_name,artist_type,country,city,bio,avatar_path,contact_email,profile_consent,profile_consent_at
+    into artist_row from public.studio_artists where id=new.artist_id;
+  if not found then raise exception 'A saved artist profile is required before submitting a release.'; end if;
+  if nullif(btrim(artist_row.stage_name),'') is null then missing_fields:=array_append(missing_fields,'artist/stage name'); end if;
+  if nullif(btrim(artist_row.artist_type),'') is null then missing_fields:=array_append(missing_fields,'artist type'); end if;
+  if nullif(btrim(artist_row.country),'') is null then missing_fields:=array_append(missing_fields,'country'); end if;
+  if nullif(btrim(artist_row.city),'') is null then missing_fields:=array_append(missing_fields,'city'); end if;
+  if nullif(btrim(artist_row.bio),'') is null then missing_fields:=array_append(missing_fields,'artist biography'); end if;
+  if nullif(btrim(artist_row.avatar_path),'') is null then missing_fields:=array_append(missing_fields,'artist profile photo'); end if;
+  if nullif(btrim(artist_row.contact_email),'') is null then missing_fields:=array_append(missing_fields,'professional contact email'); end if;
+  if artist_row.profile_consent is not true or artist_row.profile_consent_at is null then missing_fields:=array_append(missing_fields,'artist profile publication permission confirmation'); end if;
+  if nullif(btrim(artist_row.avatar_path),'') is not null and not exists(select 1 from storage.objects o where o.bucket_id='studio-artwork' and o.name=artist_row.avatar_path) then missing_fields:=array_append(missing_fields,'uploaded artist profile photo'); end if;
+  if nullif(btrim(new.title),'') is null then missing_fields:=array_append(missing_fields,'release title'); end if;
+  if nullif(btrim(new.genre),'') is null then missing_fields:=array_append(missing_fields,'genre'); end if;
+  if new.release_type is distinct from 'Single' then missing_fields:=array_append(missing_fields,'supported release type (Single only until multi-track releases are implemented)'); end if;
+  if nullif(btrim(new.language),'') is null then missing_fields:=array_append(missing_fields,'language'); end if;
+  if new.release_date is null then missing_fields:=array_append(missing_fields,'release date'); end if;
+  if nullif(btrim(new.explicit_content),'') is null then missing_fields:=array_append(missing_fields,'explicit-content classification'); end if;
+  if nullif(btrim(new.audio_path),'') is null or nullif(btrim(new.audio_filename),'') is null then missing_fields:=array_append(missing_fields,'audio file'); end if;
+  if nullif(btrim(new.audio_path),'') is not null and not exists(select 1 from storage.objects o where o.bucket_id='studio-audio' and o.name=new.audio_path) then missing_fields:=array_append(missing_fields,'uploaded audio file'); end if;
+  if nullif(btrim(new.artwork_path),'') is null then missing_fields:=array_append(missing_fields,'cover artwork'); end if;
+  if nullif(btrim(new.artwork_path),'') is not null and not exists(select 1 from storage.objects o where o.bucket_id='studio-artwork' and o.name=new.artwork_path) then missing_fields:=array_append(missing_fields,'uploaded cover artwork'); end if;
+  if nullif(btrim(new.producers),'') is null and nullif(btrim(new.songwriters),'') is null and nullif(btrim(new.composers),'') is null then missing_fields:=array_append(missing_fields,'at least one producer, songwriter or composer credit'); end if;
+  if new.rights_confirmed is not true or new.rights_confirmed_at is null then missing_fields:=array_append(missing_fields,'distribution-rights confirmation'); end if;
+  if new.metadata_confirmed is not true or new.metadata_confirmed_at is null then missing_fields:=array_append(missing_fields,'metadata-accuracy confirmation'); end if;
+  if coalesce(array_length(missing_fields,1),0)>0 then raise exception 'Cannot submit or publish this release. Complete required items: %',array_to_string(missing_fields,', '); end if;
+  if new.status='pending' and new.submitted_at is null then new.submitted_at:=now(); end if;
+  return new;
+end; $$;
