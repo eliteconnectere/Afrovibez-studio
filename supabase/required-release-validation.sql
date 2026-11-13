@@ -81,3 +81,42 @@ using (
     )
   )
 );
+
+-- Consolidate equivalent permissive policies to keep RLS evaluation efficient.
+drop policy if exists "admins read all artist profiles" on public.studio_artists;
+drop policy if exists "artist self read" on public.studio_artists;
+create policy "artists and admins read permitted profiles" on public.studio_artists
+for select to authenticated
+using (
+  owner_user_id = (select auth.uid())
+  or exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+);
+
+drop policy if exists "admins read all studio tracks" on public.studio_tracks;
+drop policy if exists "approved tracks or own submissions readable" on public.studio_tracks;
+create policy "listeners artists and admins read permitted tracks" on public.studio_tracks
+for select to anon, authenticated
+using (
+  status = 'approved'
+  or exists (select 1 from public.studio_artists a where a.id = studio_tracks.artist_id and a.owner_user_id = (select auth.uid()))
+  or exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+);
+
+drop policy if exists "admins review studio tracks" on public.studio_tracks;
+drop policy if exists "artist update own nonapproved tracks" on public.studio_tracks;
+create policy "artists and admins update permitted tracks" on public.studio_tracks
+for update to authenticated
+using (
+  exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+  or (status in ('draft','rejected') and exists (
+    select 1 from public.studio_artists a where a.id = studio_tracks.artist_id and a.owner_user_id = (select auth.uid())
+  ))
+)
+with check (
+  exists (select 1 from public.studio_profiles p where p.id = (select auth.uid()) and p.role = 'admin')
+  or (status in ('draft','pending','rejected') and exists (
+    select 1 from public.studio_artists a where a.id = studio_tracks.artist_id and a.owner_user_id = (select auth.uid())
+  ))
+);
+
+create index if not exists studio_tracks_reviewed_by_idx on public.studio_tracks(reviewed_by);
