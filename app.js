@@ -15,7 +15,7 @@ const $$=s=>document.querySelectorAll(s);
 function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove("show"),3500)}
 async function renderArtistIdentity(){
  const name=currentArtist?.stage_name||currentUser?.email?.split("@")[0]||"Artist";
- const initials=name.trim().split(/\\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()||"AV";
+ const initials=name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()||"AV";
  let url="";
  if(currentArtist?.avatar_path&&supabase){
   const {data,error}=await supabase.storage.from("studio-artwork").createSignedUrl(currentArtist.avatar_path,3600);
@@ -26,6 +26,7 @@ async function renderArtistIdentity(){
   el.innerHTML=url?'<img class="studio-avatar-photo" src="'+escapeHtml(url)+'" alt="'+escapeHtml(name)+' profile photo">':escapeHtml(initials);
   el.setAttribute("aria-label",name+" profile");
  }
+ const preview=$("#profile-photo-preview"); if(preview) preview.innerHTML = url ? "<img class=\"studio-profile-preview-photo\" src=\"" + escapeHtml(url) + "\" alt=\"Artist profile photo\">" : "▧";
  const mini=$("#profile-menu");if(mini){const copy=mini.querySelector("span:nth-child(2)");if(copy){copy.querySelector("b").textContent=name;copy.querySelector("small").textContent=currentArtist?"Artist profile":"Profile setup";}}
 }
 
