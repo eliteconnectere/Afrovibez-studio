@@ -123,7 +123,7 @@ async function saveArtistProfile(){
  if(!currentUser){showAuthDialog();toast("Sign in or create an artist account first.");return;}
  const stage=$("#profile-stage-name").value.trim(),bio=$("#profile-bio").value.trim(),type=$("#profile-artist-type").value,country=$("#profile-country").value.trim(),city=($("#profile-city").value==="__other__"?$("#profile-city-other").value:$("#profile-city").value).trim(),email=$("#profile-contact").value.trim(),photo=$("#profile-photo").files[0];
  const missing=[];
- if(!stage)missing.push("Artist / stage name");if(!type)missing.push("Artist type");if(!country)missing.push("Country");if(!city)missing.push("City");if(city&&country&&city.toLowerCase()===country.toLowerCase())missing.push("Choose a city within the selected country, not the country name.");if(!bio)missing.push("Artist biography");
+ if(!stage)missing.push("Artist / stage name");if(!type)missing.push("Artist type");if(!country)missing.push("Country");if(!city)missing.push("City");if(city&&country&&city.toLowerCase()===country.toLowerCase()&&!["singapore","monaco","vatican city","san marino","andorra","liechtenstein","luxembourg","malta","bahrain","kuwait","qatar"].includes(country.toLowerCase()))missing.push("Choose a city within the selected country, not the country name.");if(!bio)missing.push("Artist biography");
  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))missing.push("Valid professional contact email");
  if(!photo&&!currentArtist?.avatar_path)missing.push("Artist profile photo");
  if(!$("#profile-consent").checked)missing.push("Profile photo and information permission confirmation");
