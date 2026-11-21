@@ -165,6 +165,7 @@ $("#create-monetization-plan")?.addEventListener("click",async()=>{
 $("#request-monetization")?.addEventListener("click",async()=>{
  if(!currentArtist||!currentUser){toast("Sign in and save your artist profile first.");return;}
  if(!$("#monetization-consent").checked){toast("Please confirm the rights and review consent first.");return;}
+ const planSelect=$("#monetization-plan-select");if(planSelect&&planSelect.options.length>1&&!planSelect.value){toast("Choose the monetization plan you want to apply for.");return;}
  const button=$("#request-monetization");button.disabled=true;
  const {data,error}=await supabase.rpc("request_artist_monetization",{p_artist_id:currentArtist.id,p_consent_version:"afrovibez-creator-monetization-v1",p_plan_id:$("#monetization-plan-select")?.value||null});
  if(error){button.disabled=false;toast("Could not save your request: "+error.message);return;}
