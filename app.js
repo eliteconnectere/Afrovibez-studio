@@ -402,13 +402,24 @@ async function saveArtistProfile(){
  if(missing.length){showValidation("profile-validation",missing);toast("Your artist profile is not complete yet.");return;}
  showValidation("profile-validation",[]);
  if(photo&&(!/^image\/(jpeg|png|webp)$/.test(photo.type)||photo.size>15*1024*1024)){showValidation("profile-validation",["Profile photo must be JPG, PNG or WEBP and no larger than 15 MB."]);return;}
- let avatar_path=currentArtist?.avatar_path||null,uploadedPhotoPath=null;
- if(photo){const safeName=photo.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=verifiedUser.id+"/"+crypto.randomUUID()+"-"+safeName;const upload=await supabase.storage.from("studio-artwork").upload(path,photo,{upsert:false});if(upload.error){console.error("[studio-profile] avatar upload rejected",upload.error);throw new Error(upload.error.message?.includes("row-level security")?"Supabase blocked your profile-photo upload (STUDIO_AVATAR_RLS). Refresh and retry; if it persists, send this code to support.":upload.error.message||"Profile photo upload failed.");}avatar_path=path;uploadedPhotoPath=path;}
- const payload={owner_user_id:currentUser.id,stage_name:stage,legal_name:$("#profile-legal-name").value.trim(),artist_type:type,country,city,primary_language:$("#profile-language").value.trim(),bio,avatar_path,website:$("#profile-website").value.trim(),instagram:$("#profile-instagram").value.trim(),tiktok:$("#profile-tiktok").value.trim(),youtube:$("#profile-youtube").value.trim(),facebook:$("#profile-facebook").value.trim(),music_link:$("#profile-music-link").value.trim(),management:$("#profile-management").value.trim(),contact_email:email,profile_consent:true,profile_consent_at:new Date().toISOString()};
- const {data,error}=await supabase.from("studio_artists").upsert(payload,{onConflict:"owner_user_id"}).select().single();
-  if(error||!data){if(uploadedPhotoPath)await supabase.storage.from("studio-artwork").remove([uploadedPhotoPath]);if(error){console.error("[studio-profile] artist row save rejected",error);if(error.message?.includes("row-level security"))throw new Error("Supabase rejected the artist-profile database row (STUDIO_PROFILE_RLS). The signed-in account must own this profile.");throw error;}throw new Error("The database did not confirm that your artist profile was saved.");}
- if(error){if(uploadedPhotoPath)await supabase.storage.from("studio-artwork").remove([uploadedPhotoPath]);throw error;}
- const previousAvatar=currentArtist?.avatar_path;currentArtist=data;await renderArtistIdentity();$("#artist-name").value=stage;renderArtists();if(previousAvatar&&previousAvatar!==avatar_path){try{await supabase.storage.from("studio-artwork").remove([previousAvatar]);}catch(err){console.warn("Old profile image cleanup deferred",err);}}$("#profile-photo").value="";$("#profile-photo-title").textContent="Artist profile photo saved";$("#profile-photo-subtitle").textContent="Your photo is securely saved.";toast("Artist profile saved. Taking you to Upload Music…");showPage("upload");
+ const previousAvatar=currentArtist?.avatar_path||null;
+ // Save the artist row FIRST. The private Storage policy requires the artist's
+ // database UUID in the object path, so uploading a first profile photo before
+ // this row exists (or using the auth UUID instead) was rejected by RLS.
+ const payload={owner_user_id:currentUser.id,stage_name:stage,legal_name:$("#profile-legal-name").value.trim(),artist_type:type,country,city,primary_language:$("#profile-language").value.trim(),bio,avatar_path:currentArtist?.avatar_path||null,website:$("#profile-website").value.trim(),instagram:$("#profile-instagram").value.trim(),tiktok:$("#profile-tiktok").value.trim(),youtube:$("#profile-youtube").value.trim(),facebook:$("#profile-facebook").value.trim(),music_link:$("#profile-music-link").value.trim(),management:$("#profile-management").value.trim(),contact_email:email,profile_consent:true,profile_consent_at:new Date().toISOString()};
+ const saved=await supabase.from("studio_artists").upsert(payload,{onConflict:"owner_user_id"}).select().single();
+ if(saved.error||!saved.data){if(saved.error){console.error("[studio-profile] artist row save rejected",saved.error);if(saved.error.message?.includes("row-level security"))throw new Error("Supabase blocked the artist profile row. Your session or artist ownership policy needs correction.");throw saved.error;}throw new Error("The database did not confirm that your artist profile was saved.");}
+ let data=saved.data,avatar_path=data.avatar_path||null,uploadedPhotoPath=null;
+ if(photo){
+  const safeName=photo.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=data.id+"/"+crypto.randomUUID()+"-"+safeName;
+  const upload=await supabase.storage.from("studio-artwork").upload(path,photo,{upsert:false});
+  if(upload.error){console.error("[studio-profile] avatar upload rejected",upload.error);currentArtist=data;throw new Error("Your artist details were saved, but the profile photo upload was blocked: "+upload.error.message+". You can retry the photo without losing your profile details.");}
+  uploadedPhotoPath=path;avatar_path=path;
+  const photoSave=await supabase.from("studio_artists").update({avatar_path}).eq("id",data.id).eq("owner_user_id",currentUser.id).select().single();
+  if(photoSave.error||!photoSave.data){await supabase.storage.from("studio-artwork").remove([uploadedPhotoPath]);currentArtist=data;throw new Error("Your artist details were saved, but the photo path could not be saved. Please retry the photo.");}
+  data=photoSave.data;
+ }
+ currentArtist=data;await renderArtistIdentity();$("#artist-name").value=stage;renderArtists();if(previousAvatar&&previousAvatar!==avatar_path){try{await supabase.storage.from("studio-artwork").remove([previousAvatar]);}catch(err){console.warn("Old profile image cleanup deferred",err);}}$("#profile-photo").value="";$("#profile-photo-title").textContent="Artist profile photo saved";$("#profile-photo-subtitle").textContent="Your photo is securely saved.";toast("Artist profile saved. Taking you to Upload Music…");showPage("upload");
 }
 $("#save-artist-profile").addEventListener("click",async()=>{try{await saveArtistProfile()}catch(e){toast(e.message||"Could not save artist profile.")}});
 async function submitRelease(asDraft){
