@@ -30,7 +30,7 @@ async function renderArtistIdentity(){
  const mini=$("#profile-menu");if(mini){const copy=mini.querySelector("span:nth-child(2)");if(copy){copy.querySelector("b").textContent=name;copy.querySelector("small").textContent=currentArtist?"Artist profile":"Profile setup";}}
 }
 
-function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="overview")loadOverview();if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="review")renderReview()}
+function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="overview")loadOverview();if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="monetization")loadMonetization();if(name==="review")renderReview()}
 $$("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
 $("#mobile-menu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
 function localToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -119,6 +119,30 @@ $("#all-releases-table").addEventListener("click",e=>{
 
 $('#all-releases-table').addEventListener('click',async e=>{const del=e.target.closest('[data-delete]');if(!del)return;const row=releases.find(x=>x.id===del.dataset.delete);if(!row)return;const confirmed=window.confirm('PERMANENTLY DELETE THIS SONG?\\n\\nThis cannot be undone. The release and its uploaded audio/artwork will be removed from your artist account and AfroVibez. You will not be able to restore or download it from Studio. To release it again, you must upload it again as a new release.\\n\\nContinue?');if(!confirmed)return;del.disabled=true;const {data,error}=await supabase.rpc('artist_delete_studio_track',{p_track_id:row.id});if(error){del.disabled=false;toast(error.message);return;}if(!data){del.disabled=false;toast('This song could not be deleted.');return;}const cleanup=[];if(row.audio_path)cleanup.push(supabase.storage.from('studio-audio').remove([row.audio_path]));if(row.artwork_path)cleanup.push(supabase.storage.from('studio-artwork').remove([row.artwork_path]));const cleanupResults=await Promise.all(cleanup);const cleanupFailed=cleanupResults.some(result=>result.error);await loadReleases();toast(cleanupFailed?'Song deleted from your account. Some stored media cleanup needs administrator attention.':'Song permanently deleted. To release it again, upload it again as a new release.');});
 async function loadReleases(){if(!currentArtist){releases=[];renderAll();return}const {data,error}=await supabase.from("studio_tracks").select("*,studio_artists(stage_name)").eq("artist_id",currentArtist.id).neq("status","deleted").order("created_at",{ascending:false});if(error){toast(error.message);return}releases=data||[];renderAll();await checkReviewNotifications();}
+
+
+async function loadMonetization(){
+ const host=$("#monetization-status"),button=$("#request-monetization");if(!host||!button)return;
+ if(!currentUser||!currentArtist){host.textContent="Sign in and complete your artist profile to request monetization review.";button.disabled=true;return;}
+ button.disabled=false;
+ const {data,error}=await supabase.from("studio_artist_monetization").select("enrollment_status,consent_version,requested_at,review_note").eq("artist_id",currentArtist.id).maybeSingle();
+ if(error){host.textContent="Enrollment status could not load: "+error.message;return;}
+ const status=data?.enrollment_status||"not_requested";
+ const labels={not_requested:"You have not requested monetization review.",requested:"Your monetization review request is saved and awaiting review.",active:"Your artist account has been marked eligible. Advertising and verified revenue must still be operational before earnings appear.",paused:"Your monetization enrollment is paused.",rejected:"Your monetization request was declined. Check the review note or contact Studio support."};
+ host.textContent=labels[status]||"Enrollment status: "+status;
+ if(data?.review_note)host.textContent+=" Review note: "+data.review_note;
+ button.textContent=status==="requested"?"Request submitted":status==="active"?"Eligibility approved":"Request monetization review";
+ button.disabled=status==="requested"||status==="active";
+}
+$("#request-monetization")?.addEventListener("click",async()=>{
+ if(!currentArtist||!currentUser){toast("Sign in and save your artist profile first.");return;}
+ if(!$("#monetization-consent").checked){toast("Please confirm the rights and review consent first.");return;}
+ const button=$("#request-monetization");button.disabled=true;
+ const {data,error}=await supabase.rpc("request_artist_monetization",{p_artist_id:currentArtist.id,p_consent_version:"afrovibez-creator-monetization-v1"});
+ if(error){button.disabled=false;toast("Could not save your request: "+error.message);return;}
+ toast(data==="active"?"Your existing eligibility remains active.":"Monetization review request saved.");
+ await loadMonetization();
+});
 
 async function loadAnalytics(){
  const host=$("#analytics-content");if(!host)return;
