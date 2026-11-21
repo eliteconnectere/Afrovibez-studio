@@ -1,5 +1,5 @@
 -- AfroVibez artist stream analytics
--- Apply to the dedicated AfroVibe Music project: crjacwqhajlfazcmeitw
+-- Apply to the dedicated Afrovibez Supabase project (mjidrcyjpldhsywpqzxt), not Elite Connectere.
 -- Counts a stream after at least 30 seconds of playback, deduplicated per
 -- browser/device and release for 30 minutes. Device IDs are estimates, not
 -- verified people; person-level unique listeners require listener accounts.
