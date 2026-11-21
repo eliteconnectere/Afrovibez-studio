@@ -1,7 +1,7 @@
 /* Production cache-bust companion: keep this script aligned with the updated HTML entrypoint. */
 /* Studio startup: bind the complete interface before loading optional backend dependencies. */
-const SUPABASE_URL = "https://crjacwqhajlfazcmeitw.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyamFjd3FoYWpsZmF6Y21laXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MTY5NjksImV4cCI6MjExMDA5Mjk2OX0.An6dpxYF6PhkQYTdEaHbBbOhEmPQ4BKIdWEbBlhCTao";
+const SUPABASE_URL = "https://mjidrcyjpldhsywpqzxt.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qaWRyY3lqcGxkaHN5d3Bxenh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyMTQxNzcsImV4cCI6MjExMDc5MDE3N30.Ul0kk7D0SiIbQqrWrNPi0ODUuDhzprWZypMYz1IvJkU";
 let supabase = null;
 let currentUser = null;
 let currentArtist = null;
