@@ -214,7 +214,49 @@ async function openNotifications(){
 async function checkReviewNotifications(){if(!currentUser)return;const {data,error}=await supabase.from("studio_notifications").select("id,title,message,created_at").eq("user_id",currentUser.id).is("read_at",null).order("created_at",{ascending:false}).limit(5);if(error)return;const badge=$("#notifications em");if(badge)badge.style.display=data?.length?"block":"none";if(data?.length){const latest=data[0],seen=localStorage.getItem("afrovibe.last-notification-toast");if(seen!==latest.id){localStorage.setItem("afrovibe.last-notification-toast",latest.id);toast(latest.title+" — "+latest.message);}}}
 $("#notifications").addEventListener("click",openNotifications);
 $("#profile-menu").addEventListener("click",()=>showPage("artist-profile"));
-async function loadCities(country,selectedCity=""){const select=$("#profile-city"),other=$("#profile-city-other");if(!select||!other)return;select.innerHTML='<option value="">'+(country?"Loading cities…":"Choose a country first")+'</option>';select.disabled=!country;other.hidden=true;other.value="";if(!country)return;try{const response=await fetch("https://countriesnow.space/api/v0.1/countries/cities",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({country})});if(!response.ok)throw new Error("City list unavailable");const result=await response.json(),cities=Array.isArray(result.data)?result.data:[];select.innerHTML='<option value="">Choose a city</option>'+cities.sort((a,b)=>a.localeCompare(b)).map(city=>'<option value="'+escapeHtml(city)+'">'+escapeHtml(city)+'</option>').join("")+'<option value="__other__">My city is not listed</option>';select.disabled=false;const match=cities.find(city=>city.toLowerCase()===selectedCity.toLowerCase());if(selectedCity&&match){select.value=match;}else if(selectedCity){select.value="__other__";other.hidden=false;other.value=selectedCity;}}catch{select.innerHTML='<option value="">City suggestions unavailable</option><option value="__other__">Enter city manually</option>';select.disabled=false;select.value="__other__";other.hidden=false;other.value=selectedCity;}}
+const cityCountryCodes=new Map();
+let cityCountryCodesLoaded=false;
+async function getCountryCode(country){
+ if(!cityCountryCodesLoaded){
+  try{const r=await fetch("https://countries.dev/countries?fields=name,alpha2Code");if(r.ok){const rows=await r.json();if(Array.isArray(rows)){rows.forEach(c=>{if(c.name&&c.alpha2Code)cityCountryCodes.set(c.name.toLowerCase(),c.alpha2Code);});cityCountryCodesLoaded=true;}}}catch{}
+ }
+ const normalized=String(country||"").trim().toLowerCase();
+ if(cityCountryCodes.has(normalized))return cityCountryCodes.get(normalized);
+ const aliases={"united states":"US","united states of america":"US","united kingdom":"GB","south korea":"KR","north korea":"KP","russia":"RU","iran":"IR","laos":"LA","vietnam":"VN","czechia":"CZ","turkiye":"TR","türkiye":"TR","democratic republic of the congo":"CD","republic of the congo":"CG","côte d’ivoire":"CI","ivory coast":"CI"};
+ return aliases[normalized]||"";
+}
+async function loadCities(country,selectedCity=""){
+ const select=$("#profile-city"),other=$("#profile-city-other");if(!select||!other)return;
+ const key="afrovibe.cities.v2."+String(country||"").toLowerCase();
+ select.innerHTML='<option value="">'+(country?"Loading cities…":"Choose a country first")+'</option>';select.disabled=!country;other.hidden=true;other.value="";if(!country)return;
+ const cached=(()=>{try{const x=JSON.parse(localStorage.getItem(key)||"null");return x&&Date.now()-x.savedAt<7*86400000&&Array.isArray(x.cities)?x.cities:null;}catch{return null;}})();
+ let cities=cached||[];
+ if(!cached){
+  try{
+   const response=await fetch("https://countriesnow.space/api/v0.1/countries/cities",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({country}),signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw new Error("Primary city provider returned "+response.status);
+   const result=await response.json();if(result.error||!Array.isArray(result.data)||!result.data.length)throw new Error("Primary city provider returned no city list");
+   cities=result.data.map(x=>String(x).trim()).filter(Boolean);
+  }catch(primaryError){
+   try{
+    const code=await getCountryCode(country);if(!code)throw new Error("Country code unavailable");
+    const response=await fetch("https://countries.dev/cities?country="+encodeURIComponent(code)+"&limit=100",{headers:{"Accept":"application/json"},signal:AbortSignal.timeout(12000)});
+    if(!response.ok)throw new Error("Fallback city provider returned "+response.status);
+    const result=await response.json();if(!Array.isArray(result)||!result.length)throw new Error("Fallback returned no city list");
+    cities=result.map(x=>String(x.name||x.city||"").trim()).filter(Boolean);
+   }catch(fallbackError){
+    select.innerHTML='<option value="">City list could not load — tap to retry</option><option value="__other__">Enter city manually</option>';select.disabled=false;select.value="";select.dataset.retryCountry=country;other.hidden=true;other.value=selectedCity;return;
+   }
+  }
+  cities=[...new Set(cities)].sort((a,b)=>a.localeCompare(b));
+  try{localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),cities}));}catch{}
+ }
+ if(selectedCity&&!cities.some(c=>c.toLowerCase()===selectedCity.toLowerCase()))cities.push(selectedCity);
+ cities=[...new Set(cities)].sort((a,b)=>a.localeCompare(b));
+ select.innerHTML='<option value="">Choose a city</option>'+cities.map(city=>'<option value="'+escapeHtml(city)+'">'+escapeHtml(city)+'</option>').join("")+'<option value="__other__">My city is not listed</option>';
+ select.disabled=false;select.dataset.retryCountry="";
+ if(selectedCity){const match=cities.find(city=>city.toLowerCase()===selectedCity.toLowerCase());if(match)select.value=match;else{select.value="__other__";other.hidden=false;other.value=selectedCity;}}
+}
 $("#profile-country").addEventListener("change",()=>{void loadCities($("#profile-country").value);});
 $("#profile-city").addEventListener("change",()=>{$("#profile-city-other").hidden=$("#profile-city").value!=="__other__";if($("#profile-city").value!=="__other__")$("#profile-city-other").value="";});
 $("#invite-artist").addEventListener("click",()=>{
