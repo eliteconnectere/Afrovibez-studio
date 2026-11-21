@@ -1,5 +1,5 @@
 -- AfroVibe Music: required Studio submission guardrails.
--- Apply only to project crjacwqhajlfazcmeitw. Never apply to Elite Connectere.
+-- Apply only to the dedicated Afrovibez Supabase project (mjidrcyjpldhsywpqzxt), never Elite Connectere.
 
 alter table public.studio_tracks
   alter column title drop not null,
