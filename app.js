@@ -143,16 +143,30 @@ async function loadMonetization(){
  host.textContent=labels[status]||"Enrollment status: "+status;
  if(status==="requested"&&data?.review_note)host.textContent+=" Review note: "+data.review_note;
  if(status==="approved_pending_payment"||status==="active")host.textContent+=" Payment status: "+(data.payment_status||"not configured")+".";
+ const planSelect=$("#monetization-plan-select");
+ if(planSelect){const previous=planSelect.value;planSelect.innerHTML='<option value="">Choose a plan (optional for review)</option>'+(plans.data||[]).map(p=>'<option value="'+p.id+'">'+escapeHtml(p.title)+' · '+escapeHtml((p.price_minor/100).toLocaleString(undefined,{style:"currency",currency:p.currency}))+' / '+escapeHtml(p.billing_interval)+'</option>').join("");if(previous)planSelect.value=previous;}
  const planInfo=$("#monetization-plan-info");
- if(planInfo)planInfo.textContent=plans.data?.length?plans.data.map(p=>p.title+" · "+(p.price_minor/100).toLocaleString(undefined,{style:"currency",currency:p.currency})+" / "+p.billing_interval).join(" | "):"Pricing plans and checkout will be published once the payment provider and commercial price are configured.";
+ if(planInfo)planInfo.textContent=plans.data?.length?"Select a plan for your application. Payment checkout is not yet connected; approval will not charge you.":"No priced plans are published yet. The administrator can configure the price; checkout will be connected when the payment gateway is selected.";
  button.textContent=status==="requested"?"Application submitted":status==="approved_pending_payment"?"Approved · payment setup pending":status==="active"?"Monetization active":status==="rejected"?"Submit a new review request":"Request monetization review";
  button.disabled=status==="requested"||status==="approved_pending_payment"||status==="active";
 }
+$("#create-monetization-plan")?.addEventListener("click",async()=>{
+ if(currentRole!=="admin"||!currentUser){toast("Only the Studio administrator can configure monetization plans.");return;}
+ const code=$("#monetization-plan-code").value.trim(),title=$("#monetization-plan-title").value.trim(),price=Number($("#monetization-plan-price").value),currency=$("#monetization-plan-currency").value.trim().toUpperCase(),interval=$("#monetization-plan-interval").value,status=$("#monetization-plan-admin-status");
+ if(!code||!title||!Number.isFinite(price)||price<0||!/^([A-Z]{3})$/.test(currency)){status.textContent="Enter a plan code, title, non-negative price and 3-letter currency.";return;}
+ const btn=$("#create-monetization-plan");btn.disabled=true;status.textContent="Saving plan…";
+ const {data,error}=await supabase.rpc("studio_admin_create_monetization_plan",{p_code:code,p_title:title,p_description:null,p_price_minor:Math.round(price*100),p_currency:currency,p_interval:interval});
+ btn.disabled=false;
+ if(error){status.textContent="Could not save plan: "+error.message;return;}
+ status.textContent="Plan saved and listed for applications. Checkout remains disabled until the gateway is connected.";
+ $("#monetization-plan-code").value="";$("#monetization-plan-title").value="";$("#monetization-plan-price").value="";
+ await loadMonetization();
+});
 $("#request-monetization")?.addEventListener("click",async()=>{
  if(!currentArtist||!currentUser){toast("Sign in and save your artist profile first.");return;}
  if(!$("#monetization-consent").checked){toast("Please confirm the rights and review consent first.");return;}
  const button=$("#request-monetization");button.disabled=true;
- const {data,error}=await supabase.rpc("request_artist_monetization",{p_artist_id:currentArtist.id,p_consent_version:"afrovibez-creator-monetization-v1"});
+ const {data,error}=await supabase.rpc("request_artist_monetization",{p_artist_id:currentArtist.id,p_consent_version:"afrovibez-creator-monetization-v1",p_plan_id:$("#monetization-plan-select")?.value||null});
  if(error){button.disabled=false;toast("Could not save your request: "+error.message);return;}
  toast(data==="active"?"Your existing monetization remains active.":"Your monetization application has been saved for administrator review.");
  await loadMonetization();
