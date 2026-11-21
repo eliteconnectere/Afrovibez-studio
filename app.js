@@ -258,6 +258,7 @@ async function loadCities(country,selectedCity=""){
  if(selectedCity){const match=cities.find(city=>city.toLowerCase()===selectedCity.toLowerCase());if(match)select.value=match;else{select.value="__other__";other.hidden=false;other.value=selectedCity;}}
 }
 $("#profile-country").addEventListener("change",()=>{void loadCities($("#profile-country").value);});
+$("#profile-city").addEventListener("click",()=>{const country=$("#profile-city").dataset.retryCountry;if(country)void loadCities(country);});
 $("#profile-city").addEventListener("change",()=>{$("#profile-city-other").hidden=$("#profile-city").value!=="__other__";if($("#profile-city").value!=="__other__")$("#profile-city-other").value="";});
 $("#invite-artist").addEventListener("click",()=>{
  if(!currentUser){showAuthDialog();toast("Sign in before preparing an artist invitation.");return;}
