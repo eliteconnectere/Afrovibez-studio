@@ -30,7 +30,7 @@ async function renderArtistIdentity(){
  const mini=$("#profile-menu");if(mini){const copy=mini.querySelector("span:nth-child(2)");if(copy){copy.querySelector("b").textContent=name;copy.querySelector("small").textContent=currentArtist?"Artist profile":"Profile setup";}}
 }
 
-function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",monetization:"Monetization",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="overview")loadOverview();if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="monetization")loadMonetization();if(name==="review")renderReview()}
+function showPage(name){const page=document.getElementById("page-"+name);if(!page)return;$$(".page").forEach(p=>p.classList.remove("active-page"));page.classList.add("active-page");$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb-current").textContent=({overview:"Overview",releases:"My releases",upload:"Upload music","artist-profile":"Artist profile",analytics:"Analytics",artists:"Artists",review:"Review queue"})[name];$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"});if(name==="overview")loadOverview();if(name==="releases")loadReleases();if(name==="analytics")loadAnalytics();if(name==="review")renderReview()}
 $$("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
 $("#mobile-menu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
 function localToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -120,71 +120,6 @@ $("#all-releases-table").addEventListener("click",e=>{
 $('#all-releases-table').addEventListener('click',async e=>{const del=e.target.closest('[data-delete]');if(!del)return;const row=releases.find(x=>x.id===del.dataset.delete);if(!row)return;const confirmed=window.confirm('PERMANENTLY DELETE THIS SONG?\\n\\nThis cannot be undone. The release and its uploaded audio/artwork will be removed from your artist account and AfroVibez. You will not be able to restore or download it from Studio. To release it again, you must upload it again as a new release.\\n\\nContinue?');if(!confirmed)return;del.disabled=true;const {data,error}=await supabase.rpc('artist_delete_studio_track',{p_track_id:row.id});if(error){del.disabled=false;toast(error.message);return;}if(!data){del.disabled=false;toast('This song could not be deleted.');return;}const cleanup=[];if(row.audio_path)cleanup.push(supabase.storage.from('studio-audio').remove([row.audio_path]));if(row.artwork_path)cleanup.push(supabase.storage.from('studio-artwork').remove([row.artwork_path]));const cleanupResults=await Promise.all(cleanup);const cleanupFailed=cleanupResults.some(result=>result.error);await loadReleases();toast(cleanupFailed?'Song deleted from your account. Some stored media cleanup needs administrator attention.':'Song permanently deleted. To release it again, upload it again as a new release.');});
 async function loadReleases(){if(!currentArtist){releases=[];renderAll();return}const {data,error}=await supabase.from("studio_tracks").select("*,studio_artists(stage_name)").eq("artist_id",currentArtist.id).neq("status","deleted").order("created_at",{ascending:false});if(error){toast(error.message);return}releases=data||[];renderAll();await checkReviewNotifications();}
 
-
-async function loadMonetization(){
- const host=$("#monetization-status"),button=$("#request-monetization"),adminPanel=$("#monetization-admin-panel"),adminList=$("#monetization-admin-list");
- if(adminPanel)adminPanel.style.display=currentRole==="admin"?"block":"none";
- if(currentRole==="admin"&&adminList){
-  const {data:apps,error:appsError}=await supabase.from("studio_artist_monetization").select("artist_id,enrollment_status,requested_at,review_note,payment_status,studio_artists!inner(stage_name,contact_email,owner_user_id)").order("requested_at",{ascending:false});
-  if(appsError)adminList.textContent="Could not load applications: "+appsError.message;
-  else if(!apps?.length)adminList.textContent="No artist monetization applications have been submitted.";
-  else adminList.innerHTML=apps.map(a=>'<article class="setup-item" style="padding:14px;border-bottom:1px solid #e6eaf0;display:block"><b>'+escapeHtml(a.studio_artists?.stage_name||"Artist")+'</b><small style="display:block">'+escapeHtml(a.studio_artists?.contact_email||"")+' · '+escapeHtml(a.enrollment_status)+' · requested '+(a.requested_at?new Date(a.requested_at).toLocaleDateString():"—")+'</small>'+(a.review_note?'<p>'+escapeHtml(a.review_note)+'</p>':"")+'<div class="auth-row" style="margin-top:10px">'+(a.enrollment_status==="requested"?'<button class="primary-button" data-monetize-approve="'+a.artist_id+'">Approve eligibility</button><button class="outline-button" data-monetize-reject="'+a.artist_id+'">Decline</button>':a.enrollment_status==="approved_pending_payment"?'<span class="status review">Approved · payment gateway pending</span>':a.enrollment_status==="active"?'<span class="status live">Active (payment verified)</span>':'<button class="outline-button" data-monetize-resume="'+a.artist_id+'">Re-review / resume</button>')+'</div></article>').join("");
- }
- if(!host||!button)return;
- if(!currentUser||!currentArtist){host.textContent=currentRole==="admin"?"Administrator view: review artist applications below.":"Sign in and complete your artist profile to request monetization review.";button.disabled=true;return;}
- const [enrollment,plans]=await Promise.all([
-  supabase.from("studio_artist_monetization").select("enrollment_status,consent_version,requested_at,review_note,payment_status,paid_at,activated_at").eq("artist_id",currentArtist.id).maybeSingle(),
-  supabase.from("studio_monetization_plans").select("id,title,description,price_minor,currency,billing_interval").eq("enabled",true).order("created_at")
- ]);
- if(enrollment.error){host.textContent="Enrollment status could not load: "+enrollment.error.message;return;}
- if(plans.error)console.warn("Monetization plans unavailable",plans.error);
- const data=enrollment.data,status=data?.enrollment_status||"not_requested";
- const labels={not_requested:"No monetization application has been submitted yet.",requested:"Application saved. It is awaiting administrator eligibility review.",approved_pending_payment:"Eligibility approved. Artist payment/checkout is pending payment-gateway integration; no charge has been made and monetization is not active.",active:"Payment verified and monetization activated. Revenue is displayed only after verified advertising transactions are received.",paused:"Your monetization enrollment is paused.",rejected:"Your monetization application was declined. Review note: "+(data?.review_note||"No note supplied.")};
- host.textContent=labels[status]||"Enrollment status: "+status;
- if(status==="requested"&&data?.review_note)host.textContent+=" Review note: "+data.review_note;
- if(status==="approved_pending_payment"||status==="active")host.textContent+=" Payment status: "+(data.payment_status||"not configured")+".";
- const planSelect=$("#monetization-plan-select");
- if(planSelect){const previous=planSelect.value;planSelect.innerHTML='<option value="">Choose a plan (optional for review)</option>'+(plans.data||[]).map(p=>'<option value="'+p.id+'">'+escapeHtml(p.title)+' · '+escapeHtml((p.price_minor/100).toLocaleString(undefined,{style:"currency",currency:p.currency}))+' / '+escapeHtml(p.billing_interval)+'</option>').join("");if(previous)planSelect.value=previous;}
- const planInfo=$("#monetization-plan-info");
- if(planInfo)planInfo.textContent=plans.data?.length?"Select a plan for your application. Payment checkout is not yet connected; approval will not charge you.":"No priced plans are published yet. The administrator can configure the price; checkout will be connected when the payment gateway is selected.";
- button.textContent=status==="requested"?"Application submitted":status==="approved_pending_payment"?"Approved · payment setup pending":status==="active"?"Monetization active":status==="rejected"?"Submit a new review request":"Request monetization review";
- button.disabled=status==="requested"||status==="approved_pending_payment"||status==="active";
-}
-$("#create-monetization-plan")?.addEventListener("click",async()=>{
- if(currentRole!=="admin"||!currentUser){toast("Only the Studio administrator can configure monetization plans.");return;}
- const code=$("#monetization-plan-code").value.trim(),title=$("#monetization-plan-title").value.trim(),price=Number($("#monetization-plan-price").value),currency=$("#monetization-plan-currency").value.trim().toUpperCase(),interval=$("#monetization-plan-interval").value,status=$("#monetization-plan-admin-status");
- if(!code||!title||!Number.isFinite(price)||price<0||!/^([A-Z]{3})$/.test(currency)){status.textContent="Enter a plan code, title, non-negative price and 3-letter currency.";return;}
- const btn=$("#create-monetization-plan");btn.disabled=true;status.textContent="Saving plan…";
- const {data,error}=await supabase.rpc("studio_admin_create_monetization_plan",{p_code:code,p_title:title,p_description:null,p_price_minor:Math.round(price*100),p_currency:currency,p_interval:interval});
- btn.disabled=false;
- if(error){status.textContent="Could not save plan: "+error.message;return;}
- status.textContent="Plan saved and listed for applications. Checkout remains disabled until the gateway is connected.";
- $("#monetization-plan-code").value="";$("#monetization-plan-title").value="";$("#monetization-plan-price").value="";
- await loadMonetization();
-});
-$("#request-monetization")?.addEventListener("click",async()=>{
- if(!currentArtist||!currentUser){toast("Sign in and save your artist profile first.");return;}
- if(!$("#monetization-consent").checked){toast("Please confirm the rights and review consent first.");return;}
- const planSelect=$("#monetization-plan-select");if(planSelect&&planSelect.options.length>1&&!planSelect.value){toast("Choose the monetization plan you want to apply for.");return;}
- const button=$("#request-monetization");button.disabled=true;
- const {data,error}=await supabase.rpc("request_artist_monetization",{p_artist_id:currentArtist.id,p_consent_version:"afrovibez-creator-monetization-v1",p_plan_id:$("#monetization-plan-select")?.value||null});
- if(error){button.disabled=false;toast("Could not save your request: "+error.message);return;}
- toast(data==="active"?"Your existing monetization remains active.":"Your monetization application has been saved for administrator review.");
- await loadMonetization();
-});
-$("#monetization-admin-list")?.addEventListener("click",async e=>{
- const action=e.target.closest("[data-monetize-approve],[data-monetize-reject],[data-monetize-resume]");
- if(!action||currentRole!=="admin")return;
- const artistId=action.dataset.monetizeApprove||action.dataset.monetizeReject||action.dataset.monetizeResume;
- const decision=action.dataset.monetizeApprove?"approve":action.dataset.monetizeReject?"reject":"resume";
- const note=decision==="reject"?(window.prompt("Reason for declining this monetization application (required):")||"").trim():"";
- if(decision==="reject"&&!note)return;
- action.disabled=true;
- const {data,error}=await supabase.rpc("review_artist_monetization",{p_artist_id:artistId,p_decision:decision,p_note:note||null});
- if(error){action.disabled=false;toast("Review failed: "+error.message);return;}
- toast(decision==="approve"?"Eligibility approved. Artist payment remains disabled until a gateway is connected.":decision==="reject"?"Application declined.":"Application returned to payment-setup pending state.");
- await loadMonetization();
-});
 
 async function loadAnalytics(){
  const host=$("#analytics-content");if(!host)return;
