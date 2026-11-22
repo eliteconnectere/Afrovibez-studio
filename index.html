@@ -25,7 +25,7 @@
         <button class="nav-item" data-page="upload"><span class="nav-icon">＋</span>Upload music</button>
         <button class="nav-item" data-page="artist-profile"><span class="nav-icon">♙</span>Artist profile</button>
         <button class="nav-item" data-page="analytics"><span class="nav-icon">▥</span>Analytics</button>
-        <button class="nav-item" data-page="monetization"><span class="nav-icon">₦</span>Monetization</button>
+        
       </nav>
       <div class="workspace-label second-label">MANAGEMENT</div>
       <nav class="nav-list">
@@ -134,27 +134,7 @@
         </div><aside class="upload-side"><div class="panel checklist"><h3>Profile checklist</h3><ul><li><i>✓</i> Professional artist name</li><li><i>✓</i> Clear artist biography</li><li><i>✓</i> Profile photo you own</li><li><i>✓</i> Official artist links</li></ul></div><div class="side-tip"><b>Your identity, your music</b><p>Keep your artist details consistent across your releases and official music profiles.</p></div></aside></div>
       </section>
       <section class="page" id="page-analytics"><div class="page-heading"><div><div class="eyebrow">PERFORMANCE</div><h1>Song analytics</h1><p class="subheading">Streams are counted after at least 30 seconds of actual playback. Listener counts are unique devices until listener accounts are introduced.</p></div><button class="outline-button" id="refresh-analytics">Refresh stats</button></div><div id="analytics-content"><div class="panel analytics-empty"><h2>Loading your song performance…</h2><p>Fetching verified playback activity for your releases.</p></div></div></section>
-      <section class="page" id="page-monetization">
- <div class="page-heading"><div><div class="eyebrow">ARTIST REVENUE</div><h1>Monetization</h1><p class="subheading">Request eligibility to earn from verified AfroVibez advertising and future creator revenue programs.</p></div></div>
- <div class="panel form-panel" style="max-width:900px">
-  <div class="form-section-title"><span>₦</span><div><h2>Creator monetization enrollment</h2><p>Artist participation is optional. Your music rights and account must be reviewed before revenue can be enabled.</p></div></div>
-  <div id="monetization-status" class="validation-box" role="status" aria-live="polite">Loading your enrollment…</div>
-  <div class="dashboard-tip" style="margin:20px 0"><span>ⓘ</span><div><b>How earnings are intended to work</b><p>AfroVibez is building an ad-supported listening model. Ads must be served and independently verified before any advertising revenue can be allocated. A qualifying 30-second stream is a playback metric, not automatically a paid stream. Artist earnings will be calculated from actual verified revenue, not a made-up fixed rate.</p></div></div>
-  <div class="required-note"><strong>Important:</strong> Enrollment requests are being recorded, but ad-provider delivery, revenue reconciliation and payout processing are not yet live. This screen will not invent earnings or promise a payment amount. Offline playback can be recorded after the device reconnects; no ad impression is claimed when no ad was actually shown.</div>
-  <label class="field-label" for="monetization-plan-select">Monetization plan</label><select id="monetization-plan-select" class="form-control"><option value="">No plan published yet</option></select><p class="field-hint" id="monetization-plan-info">Pricing and checkout details will appear here after configuration.</p>
-  <label class="check-row required-consent" style="margin:18px 0"><input type="checkbox" id="monetization-consent"><span>I confirm that I own or have the necessary rights to monetize the music I submit, and I agree to have my artist account reviewed for AfroVibez creator monetization.</span></label>
-  <button class="primary-button" id="request-monetization">Request monetization review</button>
- </div>
- <div class="panel" style="max-width:900px;margin-top:18px"><div class="panel-heading"><div><h2>Revenue transparency</h2><p>When monetization is operational, this area will show verified ad revenue, artist share, adjustments and payout status from an auditable ledger.</p></div></div><div class="dashboard-empty" id="monetization-ledger-empty">No verified monetization transactions have been posted to your account.</div></div>
- <div class="panel" id="monetization-admin-panel" style="max-width:900px;margin-top:18px;display:none">
-  <div class="panel-heading"><div><h2>Administrator · Monetization applications</h2><p>Approve eligibility or decline an application. Approval does not charge the artist or activate earnings; checkout waits for the payment gateway.</p></div></div>
-  <div id="monetization-admin-list" class="dashboard-empty">Loading artist applications…</div>
-  <hr style="margin:24px 0;border:0;border-top:1px solid #e6eaf0"><h3>Configure an artist plan</h3><p class="field-hint">Set the price and billing interval. This creates a plan record only; checkout remains disabled until a payment provider is connected and verified.</p>
-  <div class="form-grid"><label>Plan code<input id="monetization-plan-code" maxlength="40" placeholder="artist-monthly"></label><label>Plan title<input id="monetization-plan-title" maxlength="80" placeholder="Artist Monetization"></label><label>Price (major currency units)<input id="monetization-plan-price" type="number" min="0" step="0.01" placeholder="Set your price"></label><label>Currency<input id="monetization-plan-currency" maxlength="3" value="NGN"></label><label>Billing interval<select id="monetization-plan-interval"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></select></label></div>
-  <button class="outline-button" id="create-monetization-plan">Save plan draft</button><span id="monetization-plan-admin-status" role="status"></span>
- </div>
-</section>
-<section class="page" id="page-artists"><div class="page-heading"><div><div class="eyebrow">PEOPLE & PROFILES</div><h1>Artists</h1><p class="subheading">Manage the artist profiles connected to this studio. Invitation emails are prepared for you to send.</p></div><button class="outline-button" id="invite-artist">＋ Prepare invite email</button></div><div class="artist-grid" id="artist-grid"></div></section>
+      <section class="page" id="page-artists"><div class="page-heading"><div><div class="eyebrow">PEOPLE & PROFILES</div><h1>Artists</h1><p class="subheading">Manage the artist profiles connected to this studio. Invitation emails are prepared for you to send.</p></div><button class="outline-button" id="invite-artist">＋ Prepare invite email</button></div><div class="artist-grid" id="artist-grid"></div></section>
 
       <section class="page" id="page-review"><div class="page-heading"><div><div class="eyebrow">QUALITY CONTROL</div><h1>Review queue</h1><p class="subheading">Check submissions before they go live on AfroVibez.</p></div><span class="period-tag" id="queue-count">2 awaiting review</span></div><div class="review-list" id="review-list"></div></section>
       <footer class="footer"><span>© 2026 AfroVibe Studio</span><span>Built for the sound of Africa <b>✦</b></span></footer>
@@ -162,6 +142,6 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-backdrop" id="modal-backdrop"><div class="modal"><button class="modal-close" id="modal-close" aria-label="Close">×</button><div class="modal-mark">✦</div><h2 id="modal-title">Coming soon</h2><p id="modal-copy">This feature will be available when your Studio workspace is connected to its secure backend.</p><button class="primary-button" id="modal-ok">Got it</button></div></div>
-  <script src="/app.js?v=studio-auth-monetization-avatar-fix-20261122-v4"></script>
+  <script src="/app.js?v=studio-artist-only-management-split-20261122-v1"></script>
 </body>
 </html>
