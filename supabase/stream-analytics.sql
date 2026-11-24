@@ -58,3 +58,35 @@ end;
 $$;
 revoke all on function public.record_track_stream(uuid, uuid, integer) from public;
 grant execute on function public.record_track_stream(uuid, uuid, integer) to anon, authenticated;
+
+-- Public chart ranking RPC used by the AfroVibez listener app.
+-- Exposes aggregate counts only for approved, currently released tracks.
+create or replace function public.get_public_track_charts(p_limit integer default 50)
+returns table (
+  track_id uuid,
+  stream_count bigint,
+  unique_listeners bigint
+)
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select
+    s.track_id,
+    count(*)::bigint as stream_count,
+    count(distinct s.listener_key)::bigint as unique_listeners
+  from public.studio_track_streams s
+  join public.studio_tracks t on t.id = s.track_id
+  where t.status = 'approved'
+    and t.release_date <= current_date
+  group by s.track_id
+  order by
+    count(*) desc,
+    count(distinct s.listener_key) desc,
+    max(s.streamed_at) desc
+  limit greatest(1, least(coalesce(p_limit, 50), 100));
+$$;
+
+revoke all on function public.get_public_track_charts(integer) from public;
+grant execute on function public.get_public_track_charts(integer) to anon, authenticated;
